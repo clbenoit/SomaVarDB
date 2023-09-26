@@ -1,0 +1,47 @@
+Package: SomaVarDB
+Title: R package containing a Shiny app for somatic genomic variants interpretation, and a tools suite to deal with an underlying local structured database.
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Clement",
+           family = "BENOIT",
+           role = c("aut", "cre"),
+           email = "benoitclement.sand@gmail.com")
+Description: What the package does (one paragraph).
+License: What license is it under?
+biocViews:
+Imports: 
+    attachment (>= 0.3.1),
+    attempt,
+    config (>= 0.3.1),
+    crew,
+    DBI,
+    dbplyr,
+    DT,
+    glue,
+    golem (>= 0.4.0),
+    htmltools,
+    JBrowseR,
+    magrittr,
+    openssl,
+    org.Hs.eg.db,
+    plyranges,
+    progress,
+    promises,
+    RSQLite,
+    shiny (>= 1.7.4),
+    shinydashboardPlus,
+    shinyjs,
+    usethis,
+    VariantAnnotation
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.2.3
+Depends: 
+    R (>= 2.10)
+Remotes: 
+    ThinkR-open/attachment
+Suggests: 
+    spelling,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Language: en-US

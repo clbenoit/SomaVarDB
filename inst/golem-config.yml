@@ -1,0 +1,35 @@
+default:
+  genome_version : hg19
+  golem_name: SomaVarDB
+  golem_version: 0.0.0.9000
+  app_prod: no
+  use_browser : FALSE
+  browser_server_path: "localpath"
+  browser_client_url: http://127.0.0.1:5000
+  cache_directory: default
+production:
+  app_prod: yes
+  use_browser : FALSE
+  browser_server_path: remote # default, remote or path
+  browser_client_url: url_to_access_JBrowse_server_files_from # url to access JBrowse server files from
+  cache_directory: default # Shiny app caching directory
+  genome_ref : "genome reference file name"
+demo:
+  golem_wd: !expr golem::pkg_path()
+  genome_version : hg19
+  golem_name: SomaVarDB
+  golem_version: 0.0.0.9000
+  app_prod: no
+  use_browser : FALSE
+  cache_directory: default
+demo_browser:
+  golem_wd: !expr golem::pkg_path()
+  genome_version : hg19
+  golem_name: SomaVarDB
+  golem_version: 0.0.0.9000
+  app_prod: no
+  use_browser : TRUE
+  browser_server_path: !expr system.file("extdata/testdata/JBrowseR/", package = "SomaVarDB")
+  browser_client_url: http://127.0.0.1:5000
+  cache_directory: default
+  genome_ref : human_g1k_v37.fasta.gz
