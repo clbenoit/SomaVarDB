@@ -82,7 +82,9 @@ app_server <- function(input, output, session) {
                        tabsetPanel(id = "tabsPatient",
                                    tabPanel("Sample",
                                             br(),
-                                            h4("Coverage",style = "text-align: center;"),
+                                            span(h4("Coverage",
+                                                 bsplus::shiny_iconlink(name = "info-circle") %>%
+                                                 bsplus::bs_embed_tooltip("Some information about this filter"),style = "text-align: center;")),
                                             fluidRow(column(width = 12 ,
                                                      column(width = 8 ,
                                                         sliderInput(inputId = "coverage", label = "Coverage",width = '100%',step = 10,
@@ -91,10 +93,14 @@ app_server <- function(input, output, session) {
                                                      column(width = 4 ,br(),
                                                             numericInput(inputId = "coveragenum", label = NULL ,width = '100%',step = 10,
                                                                          value = db_metadata$af_min)))),br(),         
-                                            h4("Quality",style = "text-align: center;"),
+                                            span(h4("Quality",
+                                               bsplus::shiny_iconlink(name = "info-circle") %>%
+                                                 bsplus::bs_embed_tooltip("Some information about this filter"),style = "text-align: center;")),
                                                sliderInput(inputId = "quality", label = "Quality",width = '100%',
                                                           value = db_metadata$qual_min, min = db_metadata$qual_min, max = db_metadata$qual_max),
-                                            h4("Allele Frequency",style = "text-align: center;"),
+                                            span(htmltools::h4("Allele Frequency",
+                                              bsplus::shiny_iconlink(name = "info-circle") %>%
+                                              bsplus::bs_embed_tooltip("Some information about this filter"),style = "text-align: center;")),
                                             fluidRow(column(width = 12 ,column(width = 8 ,
                                                    sliderInput(inputId = "allelefrequency",step = 0.01,
                                                                label = NULL,
@@ -102,11 +108,7 @@ app_server <- function(input, output, session) {
                                                                min = db_metadata$af_min, max = db_metadata$af_max)),
                                             column(width = 4 ,br(),
                                                     numericInput(inputId = "allelefrequencynum", label = NULL ,width = '100%',step = 0.01,
-                                                        value = db_metadata$af_min)))),
-                                            bsTooltip("allelefrequency", "Some information about this filter",
-                                                      "right", options = list(container = "body")),
-                                            bsTooltip("allelefrequencynum", "Some information about this filter",
-                                                      "right", options = list(container = "body"))
+                                                        value = db_metadata$af_min))))
                                    ),
                                    tabPanel("Annotation",
                                             selectInput(inputId = "impact", width = '100%', label = "Impact", choices  = c("Low","Moderate","High"),selected = "Low")
@@ -121,26 +123,39 @@ app_server <- function(input, output, session) {
   
   ## Link sliders and numeric inputs ##
   
+  coverage_value <- reactiveVal(db_metadata$dp_min)
+  observeEvent(coverage_value(), {
+    req(coverage_value)
+    print("update coverage")
+    updateSliderInput("coverage", value = coverage_value(), session = session)
+    updateSliderInput("coveragenum", value = coverage_value(), session = session)
+  })
+  
   observeEvent(input$coveragenum, {
     req(input$coveragenum)
     print("update coverage")
-    updateSliderInput("coverage", value = input$coveragenum, session = session)
+    coverage_value(input$coveragenum)
   })
   observeEvent(input$coverage, {
     req(input$coverage)
     print("update coveragenum")
-    updateSliderInput("coveragenum", value = input$coverage, session = session)
+    coverage_value(input$coverage)
   })
   
+  allelefrequency_value <- reactiveVal(db_metadata$af_min)
+  observeEvent(allelefrequency_value(), {
+    updateSliderInput("allelefrequency", value = allelefrequency_value(), session = session)
+    updateSliderInput("allelefrequencynum", value = allelefrequency_value(), session = session)
+  })
   observeEvent(input$allelefrequencynum, {
     req(input$allelefrequencynum)
     print("update allelefrequency")
-    updateSliderInput("allelefrequency", value = input$allelefrequencynum, session = session)
+    allelefrequency_value(input$allelefrequencynum)
   })
   observeEvent(input$allelefrequency, {
     req(input$allelefrequency)
     print("update allelefrequencynum")
-    updateSliderInput("allelefrequencynum", value = input$allelefrequency, session = session)
+    allelefrequency_value(input$allelefrequencynum)
   })
 
   ######## SAMPLE VIEW #####
@@ -683,7 +698,7 @@ app_server <- function(input, output, session) {
     req(variant_view_total_freq())
     req(current_var_table())
     req(input$selectedvariant)
-    print("renderinf db box ui")
+    print("rendering db box ui")
     output$db_boxVariant <- renderUI({
     fluidPage(
       fluidRow(

@@ -89,6 +89,7 @@ golem_add_external_resources <- function() {
   useShinyjs()
   tags$head(favicon(),bundle_resources(path = app_sys("app/www"),app_title = "SomaVarDB"))
   tags$head(tags$style(HTML(".sep {width: 20px;height: 1px;float: left;}")))
+  bsplus::use_bs_tooltip()
   # Add here other external resources
   # for example, you can add shinyalert::useShinyalert()
 }
