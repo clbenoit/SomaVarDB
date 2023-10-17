@@ -17,7 +17,20 @@
 #' @importFrom plotly renderPlotly
 #' @importFrom golem get_golem_options
 #' @importFrom shinyBS bsTooltip
+#' @importFrom shiny.router router_server change_page
 app_server <- function(input, output, session) {
+
+  # Multipage set up   
+  router_server() # mandatory of shiny.route package use
+  observeEvent(input$goparams,{
+    req(input$goparams)
+    change_page('parameters')
+  })
+  observeEvent(input$goroot,{
+    req(input$goroot)
+    change_page('/')
+  })
+  mod_parameters_management_server("save_parameters_module", reactiveValuesInputs = input, conn = con)
   
   tempdir <- tempdir()
   print(get_golem_options("config_file"))
@@ -76,7 +89,7 @@ app_server <- function(input, output, session) {
   })
 
   # Different sidebars according to selected tab
-  output$patientsidebar <- renderUI({
+  output$sidebars <- renderUI({
     tagList(
       conditionalPanel(condition = 'input.tabsBody=="PatientView"',
                        tabsetPanel(id = "tabsPatient",
@@ -117,7 +130,9 @@ app_server <- function(input, output, session) {
                                             "my phenotype selectors"
                                    )
                        )
-      )
+      ),
+      conditionalPanel(condition = 'input.tabsBody=="RunView"',
+                       selectInput(inputId = "runviewfilter", width = '100%', label = "MyRunViewParameter", choices  = c("Low","Moderate","High"),selected = "Low"))
     )
   })
   
@@ -219,97 +234,109 @@ app_server <- function(input, output, session) {
   current_sample_variants_frequencies <- reactive({
     req(current_sample_variants_ids())
     print("running current_sample_variants_MD")
-    current_sample_variants_MD <- dbGetQuery(con,
+    current_sample_variants_frequencies <- dbGetQuery(con,
                                              paste0("SELECT * from frequencies WHERE variant_id IN ('",
                                                     paste0(current_sample_variants_ids(),collapse="' , '"),
                                                     "');"))
-    return(current_sample_variants_MD)
+    return(current_sample_variants_frequencies)
     
   }) %>% bindCache({paste(current_sample_variants_ids())})
 
   current_sample_variants_table <- reactive({
-                   req(current_sample_variants_impact())
-                   req(current_sample_variants_infos())
-                   req(current_sample_variants_genos())
-                   req(current_sample_variants_MD())
-                   req(current_sample_variants_frequencies())
+                  req(current_sample_variants_impact())
+                  req(current_sample_variants_infos())
+                  req(current_sample_variants_genos())
+                  req(current_sample_variants_MD())
+                  req(current_sample_variants_frequencies())
                    
-                   if(nrow(current_sample_variants_genos()) >=1 && nrow(current_sample_variants_impact()) >=1){
-                   print("running current_sample_variants_table")
-                   progressSweetAlert(session = session, id = "renderingvarianttable",title = "Rendering variant table",display_pct = TRUE, value = 75)
-                   `VKB2_freq(%)` <- colnames(current_sample_variants_frequencies())[2]
+                  if(nrow(current_sample_variants_genos()) >=1 && nrow(current_sample_variants_impact()) >=1){
+                    if(nrow(current_sample_variants_MD()) >=1){
+                       
+                      print("running current_sample_variants_table")
+                      progressSweetAlert(session = session, id = "renderingvarianttable",title = "Rendering variant table",display_pct = TRUE, value = 75)
+                      #`VKB2_freq(%)` <- colnames(current_sample_variants_frequencies())[2]
+                      `VKB2_freq(%)` <- colnames(current_sample_variants_frequencies())[grepl("ALL_DB", colnames(current_sample_variants_frequencies()))]
                    
-                   current_sample_variants_table <- dplyr::inner_join(current_sample_variants_impact(),isolate({current_sample_variants_infos()}),by = "variant_id") %>%
-                     dplyr::inner_join(current_sample_variants_genos(),by = "variant_id") %>%
-                     dplyr::inner_join(current_sample_variants_MD(),by = "variant_id") %>%
-                     dplyr::inner_join(current_sample_variants_frequencies(),by = "variant_id") %>%
-                     select(c("symbol","VKB",
-                              "variant_id","hgvsp",
-                              `VKB2_freq(%)`,
-                              #"hgvsc", "canonical",
-                              "af",
-                              "gt_raw","chr",
-                              "dbSNP",
-                              "siftPred",
-                              "siftScore" ,
-                              "polyphen2HdivPred",
-                              "polyphen2HdivScore",
-                              "polyphen2HvarPred",
-                              "polyphen2HvarScore",
-                              "clinvarClinsig",
-                              "clinvarClinsigConf",
-                              "feature","consequence","impact","biotype","exon","intron", # normal
-                              "cosmic",
-                              "mdurl", "TumorSuppressor","Oncogene","gnomADv3",
-                              "polyphen", "sift",
-                              colnames(current_sample_variants_frequencies())))
-                     collapsed <- data.frame()
-                     ids <- unique(current_sample_variants_table$variant_id)
-                     for (id in ids){
-                       subset <- current_sample_variants_table %>% filter(variant_id ==  id)
-                       row <- subset %>% filter(hgvsp != "")
-                       if(nrow(row) > 0){
-                        row$consequence <- paste(unique(unlist(str_split(subset$consequence,pattern  = "&"))),collapse = " ")
-                        row$feature <- paste(subset$feature,collapse = " ")
-                        row$biotype <- paste(unique(subset$biotype),collapse = " ")
-                        row <- row[1,]
-                       } else {
-                         row <- subset[1,]
-                         row$consequence <- paste(unique(unlist(str_split(subset$consequence,pattern  = "&"))),collapse = " ")
-                         row$feature <- paste(subset$feature,collapse = " ")
-                         row$biotype <- paste(unique(subset$biotype),collapse = " ")
-                       }
-                       collapsed <- rbind(collapsed,row)
-                       #collapsed <- data.table::rbindlist(list(collapsed,row)) # faster check if everything is good in table
-                       #collapsed <- bind_rows(list(collapsed,row)) # even faster check if everything is good in table
-                     }
-                  collapsed <- collapsed %>%
-                    mutate(`VKB2_freq(%)` =  signif(!!as.name(`VKB2_freq(%)`), digits = 2) * 100) %>%
-                    #arrange(`VKB2_freq(%)`, desc(hgvsp)) %>% ##### ARRANGE LIKE THIS IN GERMLINE DATA
-                    arrange(desc(af), desc(cosmic)) %>% ##### ARRANGE LIKE THIS IN SOMATIC DATA
-                    mutate(hgvsp = case_when(
-                      hgvsp != "" ~ paste0('<button id="variant_view_button_',variant_id,"_",symbol,'" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;goVariantView&quot;,  this.id, {priority: &quot;event&quot;})">',hgvsp,'</button>'),
-                      TRUE ~ paste0('<button id="variant_view_button_',variant_id,"_",symbol,'" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;goVariantView&quot;,  this.id, {priority: &quot;event&quot;})"> GoToVariantView </button>'))) %>% 
-                    mutate(dbSNP = paste0(sprintf('<a href="https://www.ncbi.nlm.nih.gov/snp/?term=%s" target="_blank" class="btn btn-primary"',dbSNP),">",dbSNP,"</a>")) %>%
-                    mutate(cosmic = paste0(sprintf('<a href="https://cancer.sanger.ac.uk/cosmic/search?q=%s" target="_blank" class="btn btn-primary"',cosmic),">",cosmic,"</a>")) %>%
-                    mutate(VKB2 =  paste0('<button id="button_',variant_id,"_",symbol,'" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;goannotateVKB&quot;,  this.id, {priority: &quot;event&quot;})">',VKB,'</button>')) %>%
-                    mutate(symbol =  paste0('<a href="https://www.omim.org/search?index=entry&start=1&limit=10&sort=score+desc%2C+prefix_sort+desc&search=',symbol,'"','target="_blank"><b>',symbol,'</b></a>')) %>%
-                    select(c("VKB","variant_id",# hidden
-                             "mdurl","VKB2", # fixed
-                              `VKB2_freq(%)`,
-                              "af",
-                              "hgvsp","symbol",
-                              "chr","gt_raw", 
-                              "cosmic", "dbSNP", "siftPred", "siftScore" , "polyphen2HdivPred",
-                              "polyphen2HdivScore","polyphen2HvarPred",
-                              "polyphen2HvarScore","clinvarClinsig","clinvarClinsigConf",
-                              "feature","consequence","impact","biotype","exon","intron", # normal
-                              "TumorSuppressor","Oncogene","gnomADv3"))# %>% #%>% arrange(desc(VKB2_freq(%))) #%>%
-                              #mutate(VKB2_freq = paste0(VKB2_freq, "%"))
+                      current_sample_variants_table <- dplyr::inner_join(current_sample_variants_impact(),isolate({current_sample_variants_infos()}),by = "variant_id") %>%
+                      dplyr::inner_join(current_sample_variants_genos(),by = "variant_id") %>%
+                      dplyr::inner_join(current_sample_variants_MD(),by = "variant_id") %>%
+                      dplyr::inner_join(current_sample_variants_frequencies(),by = "variant_id") %>%
+                      select(c("symbol","VKB",
+                                "variant_id","hgvsp",
+                                `VKB2_freq(%)`,
+                                #"hgvsc", "canonical",
+                                "af",
+                                "gt_raw","chr",
+                                "dbSNP",
+                                "siftPred",
+                                "siftScore" ,
+                                "polyphen2HdivPred",
+                                "polyphen2HdivScore",
+                                "polyphen2HvarPred",
+                                "polyphen2HvarScore",
+                                "clinvarClinsig",
+                                "clinvarClinsigConf",
+                                "feature","consequence","impact","biotype","exon","intron", # normal
+                                "cosmic",
+                                "mdurl", "TumorSuppressor","Oncogene","gnomADv3",
+                                "polyphen", "sift",
+                                colnames(current_sample_variants_frequencies())))
+                      collapsed <- data.frame()
+                      ids <- unique(current_sample_variants_table$variant_id)
+                      for (id in ids){
+                        subset <- current_sample_variants_table %>% filter(variant_id ==  id)
+                        row <- subset %>% filter(hgvsp != "")
+                        if(nrow(row) > 0){
+                          row$consequence <- paste(unique(unlist(str_split(subset$consequence,pattern  = "&"))),collapse = " ")
+                          row$feature <- paste(subset$feature,collapse = " ")
+                          row$biotype <- paste(unique(subset$biotype),collapse = " ")
+                          row <- row[1,]
+                        } else {
+                          row <- subset[1,]
+                          row$consequence <- paste(unique(unlist(str_split(subset$consequence,pattern  = "&"))),collapse = " ")
+                          row$feature <- paste(subset$feature,collapse = " ")
+                          row$biotype <- paste(unique(subset$biotype),collapse = " ")
+                        }
+                        collapsed <- rbind(collapsed,row)
+                        #collapsed <- data.table::rbindlist(list(collapsed,row)) # faster check if everything is good in table
+                        #collapsed <- bind_rows(list(collapsed,row)) # even faster check if everything is good in table
+                      }
+                      # print(`VKB2_freq(%)`)
+                      # print(head(current_sample_variants_impact()))
+                      # print(head(current_sample_variants_infos()))
+                      # print(head(current_sample_variants_genos()))
+                      # print(head(current_sample_variants_MD()))
+                      # print(head(current_sample_variants_frequencies()))
+                      #print(VKB2_freq(%))
+                      #print(head(collapsed))
+                      collapsed <- collapsed %>%
+                      mutate(`VKB2_freq(%)` =  signif(!!as.name(`VKB2_freq(%)`), digits = 2) * 100) %>%
+                      #arrange(`VKB2_freq(%)`, desc(hgvsp)) %>% ##### ARRANGE LIKE THIS IN GERMLINE DATA
+                      arrange(desc(af), desc(cosmic)) %>% ##### ARRANGE LIKE THIS IN SOMATIC DATA
+                      mutate(hgvsp = case_when(
+                        hgvsp != "" ~ paste0('<button id="variant_view_button_',variant_id,"_",symbol,'" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;goVariantView&quot;,  this.id, {priority: &quot;event&quot;})">',hgvsp,'</button>'),
+                        TRUE ~ paste0('<button id="variant_view_button_',variant_id,"_",symbol,'" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;goVariantView&quot;,  this.id, {priority: &quot;event&quot;})"> GoToVariantView </button>'))) %>% 
+                      mutate(dbSNP = paste0(sprintf('<a href="https://www.ncbi.nlm.nih.gov/snp/?term=%s" target="_blank" class="btn btn-primary"',dbSNP),">",dbSNP,"</a>")) %>%
+                      mutate(cosmic = paste0(sprintf('<a href="https://cancer.sanger.ac.uk/cosmic/search?q=%s" target="_blank" class="btn btn-primary"',cosmic),">",cosmic,"</a>")) %>%
+                      mutate(VKB2 =  paste0('<button id="button_',variant_id,"_",symbol,'" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;goannotateVKB&quot;,  this.id, {priority: &quot;event&quot;})">',VKB,'</button>')) %>%
+                      mutate(symbol =  paste0('<a href="https://www.omim.org/search?index=entry&start=1&limit=10&sort=score+desc%2C+prefix_sort+desc&search=',symbol,'"','target="_blank"><b>',symbol,'</b></a>')) %>%
+                      select(c("VKB","variant_id",# hidden
+                               "mdurl","VKB2", # fixed
+                                `VKB2_freq(%)`,
+                                "af",
+                                "hgvsp","symbol",
+                                "chr","gt_raw", 
+                                "cosmic", "dbSNP", "siftPred", "siftScore" , "polyphen2HdivPred",
+                                "polyphen2HdivScore","polyphen2HvarPred",
+                                "polyphen2HvarScore","clinvarClinsig","clinvarClinsigConf",
+                                "feature","consequence","impact","biotype","exon","intron", # normal
+                                "TumorSuppressor","Oncogene","gnomADv3"))# %>% #%>% arrange(desc(VKB2_freq(%))) #%>%
+                                #mutate(VKB2_freq = paste0(VKB2_freq, "%"))
                     
-                   closeSweetAlert(session = session)
-                   return(collapsed)
-                   } else { print("novariantsmatching filtercriteria") }
+                     closeSweetAlert(session = session)
+                     return(collapsed)
+                       } else { print("no mobidetails information for variants contains in this sample. Have you run addMDtodb function after importing the vcf in base ?") }
+                    } else { print("novariantsmatching filtercriteria") }
   }) %>% bindCache({list(input$selectedsample, input$impact, input$coverage,input$quality,input$allelefrequency,globalRvalues())}) %>%
          bindEvent(c(current_sample_variants_impact(), 
                       current_sample_variants_infos(), 
@@ -346,7 +373,7 @@ app_server <- function(input, output, session) {
      variant_annoter_1_reactives$launchmodal <- variant_annoter_1_reactives$launchmodal +  1
   })
   reload <- reactiveValues(value = 0)
-  mod_variant_annoter_server("variant_annoter_1", modal = TRUE, con = con, reactiveValues = variant_annoter_1_reactives, reload = reload )
+  mod_variant_annoter_server("variant_annoter_1", modal = TRUE, conn = con, reactiveValues = variant_annoter_1_reactives, reload = reload )
   globalRvalues <- reactive({
     req(reload$value)
     print(reload$value)
@@ -425,7 +452,9 @@ app_server <- function(input, output, session) {
                                                value = "my commentary"),
                                  actionButton("okCommentSample", "Add comment on sample")),
                         tabPanel("QC",br(),
-                                 if(sample_table_reactive_values$nrow_qc >= 1) {DT::dataTableOutput("qc_table")} else {verbatimTextOutput("noqc")},br(),
+                                 if(sample_table_reactive_values$nrow_qc >= 1) {
+                                   DT::dataTableOutput("qc_table")}
+                                 else {verbatimTextOutput("noqc")}#,
                         )),
             conditionalPanel(condition = "input.dropdownItem == true", "supp figures")
           )
@@ -722,7 +751,7 @@ app_server <- function(input, output, session) {
                       )),
                       tabPanel("Comments",
                                br(),
-                               mod_variant_annoter_ui("variant_annoter_2", modal = FALSE,  con = con, reactiveValues = variant_annoter_2_reactives)
+                               mod_variant_annoter_ui("variant_annoter_2", modal = FALSE,  conn = con, reactiveValues = variant_annoter_2_reactives)
                                )
                       ),
           conditionalPanel(condition = "input.dropdownItem == true", "supp figures")

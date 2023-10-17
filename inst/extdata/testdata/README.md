@@ -6,11 +6,14 @@ OUTVCF=Perry_truncated_ready.vcf.gz
 MYVCF=SeqOne_truncated.vcf.gz
 OUTVCF=SeqOne_truncated_ready.vcf.gz
 
+## This VCF needs to have all multialleleic sites split. All fields which once had one value per alternate allele (Number=A) also need to be converted to a single value (Number=1). You can do that with bcftools:
+
 bcftools norm -c ws -f /home/ptngs/genome_references/GRCh37.fa -m - ${MYVCF} | sed -e 's/Number=A/Number=1/g' | sed -e 's/Number=\./Number=1/g' | bgzip -c > TEMP.vcf.gz
 
 bcftools view TEMP.vcf.gz | sed -e 's/Number=1,Type=Float/Number=1,Type=String/g' |  sed -e 's/Number=1,Type=Integer/Number=1,Type=String/g' | bgzip -c > TEMP2.vcf.gz
 
 ## if annotated_with_vep and CSQ column not be parsed correctly.
+
 zcat TEMP2.vcf.gz| sed '/^#/\! s/;;/;/g' | bgzip -c > ${OUTVCF}
 else mv TEMP2.vcf.gz ${OUTVCF}
 
@@ -58,4 +61,21 @@ for sample in `bcftools query -l $file`; do
 done
 
 
+## sarek vcf 
 
+
+cd /home/ptngs/Documents/haplotypecaller
+
+## remove Ids from vcf
+
+
+
+bcftools annotate -x ID 23A1424_S3/23A1424_S3.haplotypecaller.filtered_VEP.ann.vcf.gz -Oz -o 23A1424_S3/23A1424_S3.haplotypecaller.filtered_VEP.ann.NoID.vcf.gz
+
+## Split multi allelic sites
+bcftools norm -c ws -f /home/ptngs/genome_references/GRCh37.fa -m - 23A1424_S3/23A1424_S3.haplotypecaller.filtered_VEP.ann.NoID.vcf.gz | sed -e 's/Number=A/Number=1/g' | sed -e 's/Number=\./Number=1/g' | bgzip -c > TEMP.vcf.gz
+bcftools view TEMP.vcf.gz | sed -e 's/Number=1,Type=Float/Number=1,Type=String/g' |  sed -e 's/Number=1,Type=Integer/Number=1,Type=String/g' | bgzip -c > TEMP2.vcf.gz
+
+## format csq vep fields
+zcat TEMP2.vcf.gz | sed '/^#/\! s/;;/;/g' | bgzip -c > /home/ptngs/Documents/haplotypecaller/23A1424_S3/23A1424_S3.haplotypecaller.filtered_VEP.ann.NoID_splitted.vcf.gz
+```

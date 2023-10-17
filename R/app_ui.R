@@ -3,9 +3,23 @@
 #' @param request Internal parameter for `{shiny}`.
 #'     DO NOT REMOVE.
 #' @import shiny shinydashboard shinydashboardPlus shinyjs
+#' @importFrom shiny.router router_ui route
 #' @noRd
+#' 
 app_ui <- function(request) {
+  
+parameters <- div(
   tagList(
+    fluidRow(
+    actionButton(label = "go back to analysis", inputId = "goroot",icon = icon("arrow-left"),
+                 style = "position: relative; margin: 10px 10px 10px 10px; display:center-align;")),
+    br(),
+    mod_parameters_management_ui("save_parameters_module")#, inputs = input)
+  )
+)
+
+home_page <- div(
+    tagList(
     # Leave this function for adding external resources
     golem_add_external_resources(),
     # Your application UI logic
@@ -14,14 +28,17 @@ app_ui <- function(request) {
                   dashboardHeader(
                     titleWidth = '25%',
                     title = span(img(src = 'www/CHUlogo.png', width = 40, height = 39), get_golem_options("app_title")),
-                    tags$li(class = "dropdown", actionButton(label = NULL, inputId = "godbinfo",icon = icon("database"),
+                    tags$li(class = "dropdown", 
+                            actionButton(label = NULL, inputId = "goparams",icon = icon("gear"),
+                                         style = "position: relative; margin: 10px 10px 10px 10px; display:center-align;"),
+                            actionButton(label = NULL, inputId = "godbinfo",icon = icon("database"),
                                                              style = "position: relative; margin: 10px 10px 10px 10px; display:center-align;"))
                     ),
                   dashboardSidebar(width = '25vw',
                                    br(),
                                    fluidPage(column(width = 12,
-                                          uiOutput("patientsidebar"),
-                                          uiOutput("variantsidebar"))),
+                                          uiOutput("sidebars"))),
+                                          #uiOutput("variantsidebar"))),
                                    minified = FALSE,collapsed = FALSE),
                   dashboardBody(
                     #tags$head(tags$link(rel  = "stylesheet,", type = "text/css", href = 'custom.css')),
@@ -66,7 +83,10 @@ app_ui <- function(request) {
                                          fluidRow(uiOutput("db_boxVariant"))),
                                 tabPanel("RunView",br(),
                                          selectizeInput(label = "select run",inputId = "selectedrun", choices = unique(samples_db$run) ,width = '100%'),br(),
-                                         DT::dataTableOutput("qc_table_run"))
+                                         #DT::dataTableOutput("qc_table_run"),
+                                         fluidPage(
+                                           fluidRow(column(width = 12,
+                                                           tags$iframe(src = "https://multiqc.info/examples/rna-seq/multiqc_report", style='width:100%;height:1200px;'))))
                     )),
                     footer = dashboardFooter(
                       left = HTML('Support: <b>cbenoit3@chu-grenoble.fr</b>'),
@@ -74,6 +94,15 @@ app_ui <- function(request) {
                     )
     )
   )
+)# end of home_page
+)
+ 
+
+fluidPage(
+  router_ui(
+    route("/", home_page),
+    route("parameters", parameters)
+  ))
 }
 
 #' Add external Resources to the Application

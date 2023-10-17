@@ -7,7 +7,7 @@
 #' @noRd 
 #' @importFrom shinyWidgets closeSweetAlert progressSweetAlert updateProgressBar ask_confirmation pickerInput sendSweetAlert
 #' @importFrom shiny NS tagList 
-mod_variant_annoter_ui <- function(id, modal  = NULL, reactiveValues = NULL, con = con){
+mod_variant_annoter_ui <- function(id, modal  = NULL, reactiveValues = NULL, conn = con){
   ns <- NS(id)
   req(reactiveValues$my_variant_id)
   if (modal == FALSE){uiOutput(ns("ui"))}
@@ -16,7 +16,7 @@ mod_variant_annoter_ui <- function(id, modal  = NULL, reactiveValues = NULL, con
 #' variant_annoter Server Functions
 #'
 #' @noRd 
-mod_variant_annoter_server <- function(id, con = NULL, modal = FALSE, reactiveValues = NULL,reload =  reactiveValues(value = 0)){
+mod_variant_annoter_server <- function(id, conn = NULL, modal = FALSE, reactiveValues = NULL,reload =  reactiveValues(value = 0)){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
     print("entering mod_variant_annoter_server")
