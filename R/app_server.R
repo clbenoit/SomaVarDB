@@ -20,18 +20,31 @@
 #' @importFrom shiny.router router_server change_page
 app_server <- function(input, output, session) {
 
+  #sidebarVisible <- reactiveVal(TRUE)
+  # shinyjs::runjs(HTML(paste0('<script src="www/modifyHeaders.js"></script>')))
+  # 
+  # # Envoyez un message pour ajouter les en-têtes personnalisés
+  # observe({
+  #   shinyjs::runjs("window.postMessage('modifyHeaders', '*');")
+  # })
+  
   # Multipage set up   
   router_server() # mandatory of shiny.route package use
   observeEvent(input$goparams,{
     req(input$goparams)
+    #shinyjs::removeClass(selector = "body", class = "sidebar-collapse")
+    #shinyjs::removeClass(selector = "body", class = "sidebar-disable")
     change_page('parameters')
+    #shinyjs::hide("sidebar")
   })
-  observeEvent(input$goroot,{
-    req(input$goroot)
-    change_page('/')
-  })
+  # observeEvent(input$goroot,{
+  #   req(input$goroot)
+  #   change_page('/')
+  # })
   mod_parameters_management_server("save_parameters_module", reactiveValuesInputs = input, conn = con)
-  
+  #mod_parameters_management_server("save_parameters_module", reactiveValuesInputs = input, conn = con)
+  #callModule()
+
   tempdir <- tempdir()
   print(get_golem_options("config_file"))
   print(get_golem_options("config"))
@@ -55,7 +68,6 @@ app_server <- function(input, output, session) {
   }
   # Set up default user 
   if(Sys.getenv("SHINYPROXY_USERNAME") == ""){Sys.setenv(SHINYPROXY_USERNAME = "Me")}
-  
   # db raw infos
   observeEvent(input$godbinfo,{ 
     req(input$godbinfo)
@@ -109,8 +121,12 @@ app_server <- function(input, output, session) {
                                             span(h4("Quality",
                                                bsplus::shiny_iconlink(name = "info-circle") %>%
                                                  bsplus::bs_embed_tooltip("Some information about this filter"),style = "text-align: center;")),
+                                            fluidRow(column(width = 12 ,column(width = 8 ,
                                                sliderInput(inputId = "quality", label = "Quality",width = '100%',
-                                                          value = db_metadata$qual_min, min = db_metadata$qual_min, max = db_metadata$qual_max),
+                                                          value = db_metadata$qual_min, min = db_metadata$qual_min, max = db_metadata$qual_max)),
+                                               column(width = 4 ,br(),
+                                                      numericInput(inputId = "qualitynum", label = NULL ,width = '100%',step = 1,
+                                                                   value = db_metadata$qual_min)))),
                                             span(htmltools::h4("Allele Frequency",
                                               bsplus::shiny_iconlink(name = "info-circle") %>%
                                               bsplus::bs_embed_tooltip("Some information about this filter"),style = "text-align: center;")),
@@ -137,11 +153,27 @@ app_server <- function(input, output, session) {
   })
   
   ## Link sliders and numeric inputs ##
+  quality_value <- reactiveVal(db_metadata$qual_min)
+  observeEvent(quality_value(), {
+    req(quality_value)
+    updateSliderInput("quality", value = quality_value(), session = session)
+    updateSliderInput("qualitynum", value = quality_value(), session = session)
+  })
+  
+  observeEvent(input$qualitynum, {
+    req(input$qualitynum)
+    print("update qualitynum")
+    coverage_value(input$qualitynum)
+  })
+  observeEvent(input$quality, {
+    req(input$quality)
+    print("update quality")
+    quality_value(input$quality)
+  })
   
   coverage_value <- reactiveVal(db_metadata$dp_min)
   observeEvent(coverage_value(), {
     req(coverage_value)
-    print("update coverage")
     updateSliderInput("coverage", value = coverage_value(), session = session)
     updateSliderInput("coveragenum", value = coverage_value(), session = session)
   })
@@ -233,7 +265,7 @@ app_server <- function(input, output, session) {
   
   current_sample_variants_frequencies <- reactive({
     req(current_sample_variants_ids())
-    print("running current_sample_variants_MD")
+    print("running current_sample_frequencies")
     current_sample_variants_frequencies <- dbGetQuery(con,
                                              paste0("SELECT * from frequencies WHERE variant_id IN ('",
                                                     paste0(current_sample_variants_ids(),collapse="' , '"),
@@ -614,7 +646,7 @@ app_server <- function(input, output, session) {
     req(input$selectedvariant)
     variant_annoter_2_reactives$my_variant_id <- input$selectedvariant
   })
-  mod_variant_annoter_server("variant_annoter_2", modal = FALSE, reactiveValues = variant_annoter_2_reactives, con = con, reload = reload)
+  mod_variant_annoter_server("variant_annoter_2", modal = FALSE, reactiveValues = variant_annoter_2_reactives, conn = con, reload = reload)
   variant_view_reactive_values <- reactiveValues(total_freq= NULL, samples_list = NULL)
   
   observe({
@@ -780,8 +812,3 @@ app_server <- function(input, output, session) {
   })
 }
 
-observeEvent(input$selectedsample,{
-  req(input$selectedsample)
-  run <- dbGetQuery(con,paste0("SELECT run from samples WHERE sample = '",input$input$selectedsample,"'"))
-  updateSelectInput(session = session, inputId = "selectedrun", selected = run$run)
-})

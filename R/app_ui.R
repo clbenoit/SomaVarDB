@@ -10,13 +10,41 @@ app_ui <- function(request) {
   
 parameters <- div(
   tagList(
-    fluidRow(
-    actionButton(label = "go back to analysis", inputId = "goroot",icon = icon("arrow-left"),
-                 style = "position: relative; margin: 10px 10px 10px 10px; display:center-align;")),
-    br(),
+    # fluidRow(
+    # column(width = 12, actionButton(label = "go back to analysis", inputId = "goroot",icon = icon("arrow-left"),
+    #              style = "position: relative; margin: 10px 10px 10px 10px; display:center-align;"))),
+    # br(),
     mod_parameters_management_ui("save_parameters_module")#, inputs = input)
   )
 )
+
+tempdir <- tempdir()
+print("config multiqc")
+print(config::get("multiqc", 
+                  file = get_golem_options("config_file"), 
+                  config = get_golem_options("config")))
+if (config::get("multiqc", 
+                file = get_golem_options("config_file"), 
+                config = get_golem_options("config")) ==  "default"){
+                dir.create(file.path(tempdir,"multiqc"))
+                multiqc_path <- file.path(tempdir,"multiqc")
+} else {
+  multiqc_path <- config::get("multiqc", 
+                             file = get_golem_options("config_file"), 
+                             config = get_golem_options("config"))
+}
+print(multiqc_path)
+#addResourcePath("multiqc_path",multiqc_path)
+
+# addCustomHeaders <- function() {
+#   res <- shiny::addResourcePath("multiqc_path", multiqc_path)
+#   shiny::addResourcePath(
+#     "multiqc_path",
+#     res$prefix,
+#     headers = list("Access-Control-Allow-Origin" = "*")
+#   )
+# }
+#shiny::onLoad(addCustomHeaders)
 
 home_page <- div(
     tagList(
@@ -34,7 +62,7 @@ home_page <- div(
                             actionButton(label = NULL, inputId = "godbinfo",icon = icon("database"),
                                                              style = "position: relative; margin: 10px 10px 10px 10px; display:center-align;"))
                     ),
-                  dashboardSidebar(width = '25vw',
+                  dashboardSidebar(width = '25vw', id = "sidebars",
                                    br(),
                                    fluidPage(column(width = 12,
                                           uiOutput("sidebars"))),
@@ -85,8 +113,36 @@ home_page <- div(
                                          selectizeInput(label = "select run",inputId = "selectedrun", choices = unique(samples_db$run) ,width = '100%'),br(),
                                          #DT::dataTableOutput("qc_table_run"),
                                          fluidPage(
-                                           fluidRow(column(width = 12,
-                                                           tags$iframe(src = "https://multiqc.info/examples/rna-seq/multiqc_report", style='width:100%;height:1200px;'))))
+                                           fluidRow(
+                                             column(width = 12,
+                                                           tags$iframe(id = 'b', 
+                                                                       src = "https://multiqc.info/examples/rna-seq/multiqc_report",
+                                                                       style='width:100%;height:1200px;'))),
+                                           # fluidRow(
+                                           #   column(width = 12,
+                                           #          tags$iframe(id = 'multiqc',
+                                           #                      src = "multiqc_path/multiqc_report.html",
+                                           #                      loading="eager",
+                                           #                      style='width:100%;height:1200px;')))
+                                           )
+                                        #  tags$script(HTML("
+                                        #   document.getElementById(\"multiqc\").onload = function() {
+                                        #     var iframeDocument = document.getElementById('multiqc').contentDocument;
+                                        #     var scriptElement = iframeDocument.createElement(\"script\");
+                                        #     scriptElement.innerHTML = \"console.log('Script exécuté dans l\'iframe');\";
+                                        #     iframeDocument.body.appendChild(scriptElement);
+                                        #   };
+                                        # "))
+                                        # tags$script(
+                                        # HTML("
+                                        #   document.getElementById(\"multiqc\").onload = function() {
+                                        #     var iframeDocument = document.getElementById(\"multiqc\").contentDocument;
+                                        #     var iframeScripts = iframeDocument.getElementsByTagName(\"script\");
+                                        #     for (var i = 0; i < iframeScripts.length; i++) {
+                                        #       eval(iframeScripts[i].text);
+                                        #     }
+                                        #   };
+                                        # "))
                     )),
                     footer = dashboardFooter(
                       left = HTML('Support: <b>cbenoit3@chu-grenoble.fr</b>'),

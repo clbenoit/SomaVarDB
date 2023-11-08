@@ -7,6 +7,7 @@ default:
   browser_server_path: "localpath"
   browser_client_url: http://127.0.0.1:5000
   cache_directory: default
+  multiqc : /home/ptngs/Git/multiqc
 production:
   app_prod: yes
   use_browser : FALSE
