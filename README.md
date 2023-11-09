@@ -27,9 +27,9 @@ Will launch SomaVarDB on the following SQLite database : /home/my_databases/lung
 
 ## Running Demo app
 
-- `SomaVarDB::run_demo_app(prefix = "test", db_path = system.file("extdata","testdata", package = "SomaVarDB"), browser = TRUE)` Will download genome reference file on first call before to start the app
+- `SomaVarDB::run_demo_app(browser = TRUE)` Will download genome reference file on first call before to start the app
 
-- `SomaVarDB::run_demo_app(prefix = "test", db_path = system.file("extdata","testdata", package = "SomaVarDB"))` Skip references download and disable genome browser on demo app
+- `SomaVarDB::run_demo_app()` Skip references download and disable genome browser on demo app
 
 # Manage your genomic variations database
 
@@ -56,3 +56,4 @@ The SomaVarDB package comes with a tools suite to manage your database. Here are
 - Possibility for the user to upload a list of preferential transcripts, default use the canonical one in sample variants table -> cleaner view
 
 # Troubleshouting
+

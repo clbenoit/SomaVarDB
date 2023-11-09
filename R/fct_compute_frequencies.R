@@ -10,6 +10,7 @@
 compute_frequency <- function(db_path = NULL,
                     attribute = NULL, prefix = NULL){
 
+  print(attribute)
   db_name <- file.path(db_path,paste0(prefix, ".db"))
   con <- dbConnect(SQLite(), db_name)
   
@@ -21,7 +22,15 @@ compute_frequency <- function(db_path = NULL,
     samples <- DBI::dbReadTable(con,"samples")
     samples <- samples %>% filter(sample %in% unique(variant_geno$sample))
     frequencies <- data.frame("variant_id" = 'a')
+    columns <- DBI::dbGetQuery(conn = con, "PRAGMA table_info('frequencies');")$name
     for (value in unique(samples[,attribute])){
+      
+      print(columns)
+      print(attribute)
+      col <- columns[grepl(paste0(value,"_freq_total"),columns)]
+      print(paste0("ALTER TABLE frequencies DROP COLUMN ",col,";"))
+      DBI::dbSendQuery(conn = con, paste0("ALTER TABLE frequencies DROP COLUMN '",col,"';"))
+      
       samples_fil <- samples %>% filter(get(attribute) == value)
       variant_geno_filtered <- variant_geno %>% inner_join(samples_fil,
                                                   by = "sample", keep = FALSE)
@@ -33,7 +42,6 @@ compute_frequency <- function(db_path = NULL,
       frequencies <- frequencies_col %>% full_join(frequencies, by = c("variant_id"), keep = FALSE)
     }
     frequencies[is.na(frequencies)] = 0
-    
     if(!DBI::dbExistsTable(conn = con,name="frequencies")){
     DBI::dbWriteTable(conn = con,
                       name="frequencies",
