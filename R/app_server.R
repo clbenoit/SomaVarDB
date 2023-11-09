@@ -202,7 +202,7 @@ app_server <- function(input, output, session) {
   observeEvent(input$allelefrequency, {
     req(input$allelefrequency)
     print("update allelefrequencynum")
-    allelefrequency_value(input$allelefrequencynum)
+    allelefrequency_value(input$allelefrequency)
   })
 
   ######## SAMPLE VIEW #####

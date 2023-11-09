@@ -195,7 +195,12 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
                                                  "impact" = 0,
                                                  "trlist" = "None")
 
-    observeEvent(input$selectset,ignoreNULL = TRUE, {
+    observeEvent(c(input$selectset,
+                 reactiveValuesInputs$allelefrequencynum,
+                 reactiveValuesInputs$coveragenum,
+                 reactiveValuesInputs$qualitynum,
+                 reactiveValuesInputs$impact,
+                 reactiveValuesInputs$trlist),ignoreNULL = TRUE, {
       req(input$selectset)
       req(user_presets$filters)
       req(input$selectset)
@@ -212,7 +217,7 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
         current_preset <- user_presets$filters %>% filter(name  == input$selectset)
         if(current_preset$allelefrequencynum != "Emptypreset"){
           print(paste0("reading", current_preset$name, " preset values..." ))
-          values <- DBI::dbGetQuery(conn = con, paste0("SELECT  allelefrequencynum, coveragenum , qualitynum , impact FROM presets ",
+          values <- DBI::dbGetQuery(conn = con, paste0("SELECT  allelefrequencynum, coveragenum , qualitynum , impact, trlist FROM presets ",
                                                 "WHERE user = '", Sys.getenv("SHINYPROXY_USERNAME"), "' AND name = '",input$selectset,"' ;"))
           reactiveValuesInputsInside$allelefrequencynum <- values$allelefrequencynum 
           reactiveValuesInputsInside$coveragenum <- values$coveragenum
@@ -373,7 +378,7 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
       DBI::dbWriteTable(conn = con, name = paste0(input$newtranscriptlistname, "_" , Sys.getenv("SHINYPROXY_USERNAME"),"_transcriptlist"), value = file_data())
       user_presets$transcript_lists <- c(input$newtranscriptlistname,user_presets$transcript_lists)
       updateSelectInput(session = session, inputId = 'selectlist', choices = user_presets$transcript_lists, selected = input$newtranscriptlistname)
-      updateSelectInput(session = session, inputId = 'trlistsetup', choices = user_presets$transcript_lists)
+      updateSelectInput(session = session, inputId = 'trlistsetup', choices = choices = c("None", user_presets$transcript_lists))
       sendSweetAlert(session = session,
                      title = "Transcript List added", 
                      text = paste(input$newtranscriptlistname, "preset has been updated"),

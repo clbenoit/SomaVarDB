@@ -13,7 +13,8 @@ global <- quote({
                           allelefrequencynum = "mysetup",
                           coveragenum = "mysetup", 
                           qualitynum = "mysetup", 
-                          impact = "mysetup")
+                          impact = "mysetup",
+                          trlist = "mysetup")
                           #values = "mysetup")
     DBI::dbWriteTable(con, name = "presets", value = presets, overwrite = TRUE)}
   
