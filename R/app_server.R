@@ -163,7 +163,7 @@ app_server <- function(input, output, session) {
   observeEvent(input$qualitynum, {
     req(input$qualitynum)
     print("update qualitynum")
-    coverage_value(input$qualitynum)
+    quality_value(input$qualitynum)
   })
   observeEvent(input$quality, {
     req(input$quality)
