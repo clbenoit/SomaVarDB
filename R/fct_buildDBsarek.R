@@ -16,10 +16,10 @@
 #' @export
 buildDB_sarek <- function(prefix = NULL, vcf_name = NULL, db_path = NULL) {
 
-  db_path <- system.file("extdata","testdata", package = "SomaVarDB")
-  prefix <- "test"
-  vcf_name <- "/home/ptngs/Documents/haplotypecaller/23A1424_S3/23A1424_S3.haplotypecaller.filtered_VEP.ann.vcf.gz"
-  vcf_name <- "/home/ptngs/Documents/haplotypecaller/23A1424_S3/23A1424_S3.haplotypecaller.filtered_VEP.ann.NoID.vcf.gz"
+  #db_path <- system.file("extdata","testdata", package = "SomaVarDB")
+  #prefix <- "test"
+  #vcf_name <- "/home/ptngs/Documents/haplotypecaller/23A1424_S3/23A1424_S3.haplotypecaller.filtered_VEP.ann.vcf.gz"
+  #vcf_name <- "/home/ptngs/Documents/haplotypecaller/23A1424_S3/23A1424_S3.haplotypecaller.filtered_VEP.ann.NoID.vcf.gz"
   
   process_sample <- FALSE
 
