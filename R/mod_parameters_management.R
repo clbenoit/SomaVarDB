@@ -378,7 +378,7 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
       DBI::dbWriteTable(conn = con, name = paste0(input$newtranscriptlistname, "_" , Sys.getenv("SHINYPROXY_USERNAME"),"_transcriptlist"), value = file_data())
       user_presets$transcript_lists <- c(input$newtranscriptlistname,user_presets$transcript_lists)
       updateSelectInput(session = session, inputId = 'selectlist', choices = user_presets$transcript_lists, selected = input$newtranscriptlistname)
-      updateSelectInput(session = session, inputId = 'trlistsetup', choices = choices = c("None", user_presets$transcript_lists))
+      updateSelectInput(session = session, inputId = 'trlistsetup', choices = c("None", user_presets$transcript_lists))
       sendSweetAlert(session = session,
                      title = "Transcript List added", 
                      text = paste(input$newtranscriptlistname, "preset has been updated"),
