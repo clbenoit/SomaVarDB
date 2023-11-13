@@ -29,7 +29,9 @@ compute_frequency <- function(db_path = NULL,
       print(attribute)
       col <- columns[grepl(paste0(value,"_freq_total"),columns)]
       print(paste0("ALTER TABLE frequencies DROP COLUMN ",col,";"))
-      DBI::dbSendQuery(conn = con, paste0("ALTER TABLE frequencies DROP COLUMN '",col,"';"))
+      tryCatch({
+        DBI::dbSendQuery(conn = con, paste0("ALTER TABLE frequencies DROP COLUMN '",col,"';"))
+      }, error = function(e){ print(e) })
       
       samples_fil <- samples %>% filter(get(attribute) == value)
       variant_geno_filtered <- variant_geno %>% inner_join(samples_fil,
