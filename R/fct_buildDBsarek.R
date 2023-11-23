@@ -205,13 +205,24 @@ buildDB_sarek <- function(prefix = NULL, vcf_name = NULL, db_path = NULL) {
         arrange(variant_id, sample) %>%
         ##### sarek specific #####
         separate(ad, c("delete","ro","ao")) %>%
-        mutate(ao = as.numeric(ao),
-               af = round(ao/as.numeric(dp), digits = 2), # because empty on seqone results
-               qa = 10*log10(gq)) %>%
+        
+        ##### SEQONE VERSION #########
+        #mutate(ao = as.numeric(ao),
+        #       af = round(ao/as.numeric(dp), digits = 2), # because empty on seqone results
+        #       qa = 10*log10(gq)) %>%
               ## gq = probability that the call is incorrect = genotype quality
               ##  qa = same as phred score
               #########################         
-              filter(qa >= 10)
+        #      filter(qa >= 10)
+      ##### SAREK VERSION #########
+      mutate(#ao = as.numeric(ao),
+             af = round(ao/as.numeric(dp), digits = 2), # because empty on seqone results
+             qa = 10*log10(gq)) %>%
+        ## gq = probability that the call is incorrect = genotype quality
+        ##  qa = same as phred score
+        #########################         
+      filter(qa >= 10)
+      ####################################
       geno.vcf <- geno.vcf[,!(colnames(geno.vcf) %in% c("gq","pl","delete"))]
       geno.vcf <-  mutate_all(geno.vcf,~replace_na(.,0))# proper to seqOne vcf
     }

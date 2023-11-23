@@ -130,14 +130,16 @@ app_server <- function(input, output, session) {
                                             span(htmltools::h4("Allele Frequency",
                                               bsplus::shiny_iconlink(name = "info-circle") %>%
                                               bsplus::bs_embed_tooltip("Some information about this filter"),style = "text-align: center;")),
-                                            fluidRow(column(width = 12 ,column(width = 8 ,
-                                                   sliderInput(inputId = "allelefrequency",step = 0.01,
-                                                               label = NULL,
-                                                               width = '100%', value = db_metadata$af_min, 
-                                                               min = db_metadata$af_min, max = db_metadata$af_max)),
-                                            column(width = 4 ,br(),
-                                                    numericInput(inputId = "allelefrequencynum", label = NULL ,width = '100%',step = 0.01,
-                                                        value = db_metadata$af_min))))
+                                            fluidRow(column(width = 12 ,
+                                                            column(width = 12 ,
+                                                                  sliderInput(inputId = "allelefrequency",step = 0.01,
+                                                                  label = NULL,
+                                                                  width = '100%', value = c(db_metadata$af_min,db_metadata$af_max),
+                                                                  min = db_metadata$af_min, max = db_metadata$af_max))#,
+                                                   ))#,
+                                            # column(width = 4 ,br(),
+                                            #         numericInput(inputId = "allelefrequencynum", label = NULL ,width = '100%',step = 0.01,
+                                            #             value = db_metadata$af_min))))
                                    ),
                                    tabPanel("Annotation",
                                             selectInput(inputId = "impact", width = '100%', label = "Impact", choices  = c("Low","Moderate","High"),selected = "Low")
@@ -189,21 +191,21 @@ app_server <- function(input, output, session) {
     coverage_value(input$coverage)
   })
   
-  allelefrequency_value <- reactiveVal(db_metadata$af_min)
-  observeEvent(allelefrequency_value(), {
-    updateSliderInput("allelefrequency", value = allelefrequency_value(), session = session)
-    updateSliderInput("allelefrequencynum", value = allelefrequency_value(), session = session)
-  })
-  observeEvent(input$allelefrequencynum, {
-    req(input$allelefrequencynum)
-    print("update allelefrequency")
-    allelefrequency_value(input$allelefrequencynum)
-  })
-  observeEvent(input$allelefrequency, {
-    req(input$allelefrequency)
-    print("update allelefrequencynum")
-    allelefrequency_value(input$allelefrequency)
-  })
+  # allelefrequency_value <- reactiveVal(db_metadata$af_min)
+  # observeEvent(allelefrequency_value(), {
+  #   updateSliderInput("allelefrequency", value = allelefrequency_value(), session = session)
+  #   updateSliderInput("allelefrequencynum", value = allelefrequency_value(), session = session)
+  # })
+  # observeEvent(input$allelefrequencynum, {
+  #   req(input$allelefrequencynum)
+  #   print("update allelefrequency")
+  #   allelefrequency_value(input$allelefrequencynum)
+  # })
+  # observeEvent(input$allelefrequency, {
+  #   req(input$allelefrequency)
+  #   print("update allelefrequencynum")
+  #   allelefrequency_value(input$allelefrequency)
+  # })
 
   ######## SAMPLE VIEW #####
   current_sample_variants_genos <- reactive({
@@ -214,7 +216,8 @@ app_server <- function(input, output, session) {
                 ) %>%
                 filter((dp >= input$coverage) &
                 (qa >= input$quality) &
-                (af >= input$allelefrequency))
+                (af >= input$allelefrequency[1]) &
+                (af <= input$allelefrequency[2]))
       )
   }) %>% bindCache({list(input$selectedsample,input$coverage,input$quality,input$allelefrequency,globalRvalues())})
   
@@ -733,8 +736,8 @@ app_server <- function(input, output, session) {
 
   observeEvent(input$gosample,{
     req(input$gosample)
-    updateTabsetPanel(session, "tabsBody", "PatientView")
     updateSelectizeInput(session, inputId = "selectedsample",selected = gsub("button_","",input$gosample))
+    updateTabsetPanel(session, "tabsBody", "PatientView") ### Ajax error, maybe wait for the patient table to be completely computed before to switch to patient tab
   })
 
   variant_view_samples_list <- reactive({
