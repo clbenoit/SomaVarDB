@@ -103,6 +103,7 @@ app_server <- function(input, output, session) {
   # Different sidebars according to selected tab
   output$sidebars <- renderUI({
     tagList(
+      includeCSS(system.file("extdata","css/custom.css", package = "GermlineVarDB")), # A ajouter ds chaque render UI je pense
       conditionalPanel(condition = 'input.tabsBody=="PatientView"',
                        tabsetPanel(id = "tabsPatient",
                                    tabPanel("Sample",
@@ -112,9 +113,9 @@ app_server <- function(input, output, session) {
                                                  bsplus::bs_embed_tooltip("Some information about this filter"),style = "text-align: center;")),
                                             fluidRow(column(width = 12 ,
                                                      column(width = 8 ,
-                                                        sliderInput(inputId = "coverage", label = "Coverage",width = '100%',step = 10,
+                                                        tags$div(sliderInput(inputId = "coverage", label = "Coverage",width = '100%',step = 10,
                                                           value = db_metadata$dp_min,
-                                                          min = db_metadata$dp_min, max = db_metadata$dp_max)),
+                                                          min = db_metadata$dp_min, max = db_metadata$dp_max),class = "reverseSlider")),
                                                      column(width = 4 ,br(),
                                                             numericInput(inputId = "coveragenum", label = NULL ,width = '100%',step = 10,
                                                                          value = db_metadata$af_min)))),br(),         
@@ -122,8 +123,8 @@ app_server <- function(input, output, session) {
                                                bsplus::shiny_iconlink(name = "info-circle") %>%
                                                  bsplus::bs_embed_tooltip("Some information about this filter"),style = "text-align: center;")),
                                             fluidRow(column(width = 12 ,column(width = 8 ,
-                                               sliderInput(inputId = "quality", label = "Quality",width = '100%',
-                                                          value = db_metadata$qual_min, min = db_metadata$qual_min, max = db_metadata$qual_max)),
+                                               tags$div(sliderInput(inputId = "quality", label = "Quality",width = '100%',
+                                                          value = db_metadata$qual_min, min = db_metadata$qual_min, max = db_metadata$qual_max),class = "reverseSlider")),
                                                column(width = 4 ,br(),
                                                       numericInput(inputId = "qualitynum", label = NULL ,width = '100%',step = 1,
                                                                    value = db_metadata$qual_min)))),
@@ -142,6 +143,19 @@ app_server <- function(input, output, session) {
                                             #             value = db_metadata$af_min))))
                                    ),
                                    tabPanel("Annotation",
+                                            span(htmltools::h4("gnomAD Frequency",
+                                                               bsplus::shiny_iconlink(name = "info-circle") %>%
+                                                                 bsplus::bs_embed_tooltip("Some information about this filter"),style = "text-align: center;")),
+                                            fluidRow(column(width = 12 ,
+                                                            column(width = 8 ,
+                                                                   sliderInput(inputId = "gnomadfrequency",step = 0.01,
+                                                                               label = NULL,
+                                                                               width = '100%', 
+                                                                               value = 1, min = 0 , max = 1)),
+                                                            column(width = 4 ,br(),
+                                                                   numericInput(inputId = "gnomadfrequencynum", label = NULL  ,width = '100%',
+                                                                                step = 0.01,
+                                                                                value = 1, min = 0, max = 1)))),
                                             selectInput(inputId = "impact", width = '100%', label = "Impact", choices  = c("Low","Moderate","High"),selected = "Low")
                                    ),
                                    tabPanel("Phenotype",br(),
@@ -155,11 +169,29 @@ app_server <- function(input, output, session) {
   })
   
   ## Link sliders and numeric inputs ##
+  gnomad_value <- reactiveVal(1)
+  observeEvent(gnomad_value(), {
+    req(gnomad_value)
+    updateSliderInput("gnomadfrequency", value = gnomad_value(), session = session)
+    updateNumericInput("gnomadfrequencynum", value = gnomad_value(), session = session)
+  })
+  
+  observeEvent(input$gnomadfrequencynum, {
+    req(input$gnomadfrequencynum)
+    print("update gnomadfrequencynum")
+    gnomad_value(input$gnomadfrequencynum)
+  })
+  observeEvent(input$gnomadfrequency, {
+    req(input$gnomadfrequency)
+    print("update gnomadfrequency")
+    gnomad_value(input$gnomadfrequency)
+  })
+  
   quality_value <- reactiveVal(db_metadata$qual_min)
   observeEvent(quality_value(), {
     req(quality_value)
     updateSliderInput("quality", value = quality_value(), session = session)
-    updateSliderInput("qualitynum", value = quality_value(), session = session)
+    updateNumericInput("qualitynum", value = quality_value(), session = session)
   })
   
   observeEvent(input$qualitynum, {
@@ -177,7 +209,7 @@ app_server <- function(input, output, session) {
   observeEvent(coverage_value(), {
     req(coverage_value)
     updateSliderInput("coverage", value = coverage_value(), session = session)
-    updateSliderInput("coveragenum", value = coverage_value(), session = session)
+    updateNumericInput("coveragenum", value = coverage_value(), session = session)
   })
   
   observeEvent(input$coveragenum, {
@@ -258,14 +290,25 @@ app_server <- function(input, output, session) {
   
   current_sample_variants_MD <- reactive({
     req(current_sample_variants_ids())
+    req(input$gnomadfrequency)
       print("running current_sample_variants_MD")
       current_sample_variants_MD <- dbGetQuery(con,
                                                  paste0("SELECT * from variant_MD WHERE variant_id IN ('",
                                                         paste0(current_sample_variants_ids(),collapse="' , '"),
                                                         "');"))
+      current_sample_variants_MD_filtered <- current_sample_variants_MD %>% 
+        filter(!(gnomADv3 %in% c("No match in gnomADv3","Error on MobiDetails"))) %>%
+        mutate(gnomADv3 = as.numeric(gnomADv3)) %>%
+        filter(gnomADv3 <= input$gnomadfrequency)
+      current_sample_variants_MD_nomatch <- current_sample_variants_MD %>% filter(gnomADv3 %in% c("No match in gnomADv3","Error on MobiDetails"))
+      current_sample_variants_MD <- rbind(current_sample_variants_MD_nomatch,current_sample_variants_MD_filtered)
+      
       return(current_sample_variants_MD)
-    }) %>% bindCache({paste(current_sample_variants_ids())})
-  
+    #}) %>% bindCache({paste(current_sample_variants_ids())})
+    }) %>% bindCache({paste(current_sample_variants_ids(),input$gnomadfrequency)}) %>% 
+     bindEvent(c(current_sample_variants_ids(),input$gnomadfrequency))
+
+
   current_sample_variants_frequencies <- reactive({
     req(current_sample_variants_ids())
     print("running current_sample_frequencies")
@@ -372,13 +415,14 @@ app_server <- function(input, output, session) {
                      return(collapsed)
                        } else { print("no mobidetails information for variants contains in this sample. Have you run addMDtodb function after importing the vcf in base ?") }
                     } else { print("novariantsmatching filtercriteria") }
-  }) %>% bindCache({list(input$selectedsample, input$impact, input$coverage,input$quality,input$allelefrequency,globalRvalues())}) %>%
+  }) %>% bindCache({list(input$gnomadfrequency,input$selectedsample, input$impact, input$coverage,input$quality,input$allelefrequency,globalRvalues())}) %>%
          bindEvent(c(current_sample_variants_impact(), 
                       current_sample_variants_infos(), 
                       current_sample_variants_genos(), 
                       current_sample_variants_MD()))
 
- observeEvent(c(current_sample_variants_table(),input$tabsBody),{
+ #observeEvent(c(current_sample_variants_table(),input$tabsBody),{
+ observeEvent(c(current_sample_variants_table()),{ ### AJAX error because of input$tabsBody ?
     output$current_sample_variants_table <- DT::renderDataTable({
       print("Rendering current sample variants table")
       req(current_sample_variants_table())

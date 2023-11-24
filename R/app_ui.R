@@ -10,11 +10,7 @@ app_ui <- function(request) {
   
 parameters <- div(
   tagList(
-    # fluidRow(
-    # column(width = 12, actionButton(label = "go back to analysis", inputId = "goroot",icon = icon("arrow-left"),
-    #              style = "position: relative; margin: 10px 10px 10px 10px; display:center-align;"))),
-    # br(),
-    mod_parameters_management_ui("save_parameters_module")#, inputs = input)
+    mod_parameters_management_ui("save_parameters_module")
   )
 )
 
@@ -69,7 +65,6 @@ home_page <- div(
                                           #uiOutput("variantsidebar"))),
                                    minified = FALSE,collapsed = FALSE),
                   dashboardBody(
-                    #tags$head(tags$link(rel  = "stylesheet,", type = "text/css", href = 'custom.css')),
                     tabsetPanel(id = "tabsBody",
                                 tabPanel("PatientView",
                                          br(),fluidRow(uiOutput("db_boxPatient")), # decaler logo run a dte
@@ -170,7 +165,7 @@ fluidPage(
 #' @importFrom golem add_resource_path activate_js favicon bundle_resources
 #' @noRd
 golem_add_external_resources <- function() {
-  add_resource_path("www",app_sys("app/www"))
+  add_resource_path("www",app_sys("app/www"), warn_empty = TRUE)
   useShinyjs()
   tags$head(favicon(),bundle_resources(path = app_sys("app/www"),app_title = "SomaVarDB"))
   tags$head(tags$style(HTML(".sep {width: 20px;height: 1px;float: left;}")))
