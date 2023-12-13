@@ -9,6 +9,7 @@
 #' @importFrom shiny NS tagList
 #' @importFrom readr read_delim cols col_character
 #' @importFrom shinydashboardPlus dashboardPage
+#' @importFrom DBI dbExecute
 mod_parameters_management_ui <- function(id, modal  = NULL, reactiveValues = NULL, conn = NULL){ #inputs = NULL){
   print("entering mod_parameters_management_ui")
   ns <- NS(id)
@@ -36,30 +37,34 @@ mod_parameters_management_ui <- function(id, modal  = NULL, reactiveValues = NUL
                                column(width = 12, h1("Selected preset values : "))),br(),
                              fluidRow(
                                column(width = 4,
-                                      h2("Allele frequency :"),  
+                                      h2("Allele frequency :"),
                                       numericInput(inputId = ns("allelefrequencynumsetup"), label = NULL ,width = '100%',step = 0.01,value = 0)),
                                column(width = 4,
-                                      h2("Coverage :"),  
+                                      h2("Coverage :"),
                                       numericInput(inputId = ns("coveragenumsetup"), label = NULL ,width = '100%',step = 0.01,value = 0)),
                                column(width = 4,
-                                      h2("Quality :"),  
+                                      h2("Quality :"),
                                       numericInput(inputId = ns("qualitynumsetup"), label = NULL ,width = '100%',step = 0.01,value = 0))),
                              fluidRow(
                                column(width = 4,
-                                      h2("Impact :"),  
+                                      h2("Impact :"),
                                       selectInput(inputId = ns("impactsetup"), label = NULL ,width = '100%',
                                                   choices = c("Low", "Moderate","High"))),
                                column(width = 4,
-                                      h2("Prefered transcripts list :"),  
+                                      h2("Prefered transcripts list :"),
                                       selectInput(inputId = ns("trlistsetup"), label = NULL ,width = '100%',
-                                                  choices = "None", selected = "None"))
+                                                  choices = "None", selected = "None")),
+                               column(width = 4,
+                                      h2("Prefered manifest :"),  
+                                      selectInput(inputId = ns("manifestsetup"), label = NULL ,width = '100%',
+                                                  choices = "None", selected = "None"))                               
                               ),
                              fluidRow(column(width = 12,actionButton(inputId = ns('save_params'), "Save current parameters")))
                     ),
                   tabPanel("My transcripts",
                            br(),
                            fluidRow(column(width = 9, align = "left",
-                                  selectizeInput(width = '100%', inputId = ns('selectlist'), label = "Select a transcript list to visualize",
+                                  selectizeInput(width = '100%', inputId = ns('selectlist'), label = "Select a transcript list to remove",
                                                  choices = NULL, selected = NULL)),
                            column(width = 3, align = "left",br(),
                                   actionButton(width = '100%', inputId = ns('removelist'), icon = icon("minus"), label = NULL))),
@@ -84,8 +89,33 @@ mod_parameters_management_ui <- function(id, modal  = NULL, reactiveValues = NUL
                            ))
                          ),
                 tabPanel("My genomic regions",
+                         br(),br(),
+                         fluidRow(column(width = 9, align = "left",
+                                         selectizeInput(width = '100%', inputId = ns('selectManifest'), label = "Select a manifest to remove",
+                                                        choices = NULL, selected = NULL)),
+                                  column(width = 3, align = "left",br(),
+                                         actionButton(width = '100%', inputId = ns('removeManifest'), icon = icon("minus"), label = NULL))),
+                         fluidRow(shinydashboardPlus::box(
+                           title = "Add a new manifest", closable = FALSE ,solidHeader = TRUE,
+                           width = 12, status = "primary", collapsible = TRUE,collapsed = FALSE,
+                           dropdownMenu = boxDropdown(
+                             boxDropdownItem("Show an input file example", id = ns("dropdownExampleManifest")),icon = icon("info")),
+                           column(width = 8,
+                                  fileInput(ns("newmanifestfile"), "Upload a Text File"),
+                                  helpText("The file should contain three columns named: chromosome, start and end (Columns names are case sensitive).")),
+                           column(width = 4,
+                                  selectInput(ns("separatorManifest"),"Choose a field separator" ,
+                                              choices = c("Tabulation" = "\t", 
+                                                          "comma" = ",", 
+                                                          "space" = " ",
+                                                          "semicolon" = ";")),
+                                  helpText("How are your columns separated in your input file")
+                           ),
+                           uiOutput(ns("Manifestsui")),
+                           br()
+                         ))                     
                 )
-                )
+            )
   )
 }
     
@@ -115,22 +145,33 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
 
       transcript_lists <- gsub(paste0("_",Sys.getenv("SHINYPROXY_USERNAME")),"",gsub("_transcriptlist","",transcript_lists$name))
   
-      user_presets <- reactiveValues(filters = presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME")), init = FALSE,
-                                     transcript_lists = transcript_lists)
+      manifests_list <- DBI::dbReadTable(conn = con, name = "manifests_list") %>% filter(user_id == manifests)
+      manifests_list <- gsub(paste0("_",Sys.getenv("SHINYPROXY_USERNAME")),"",manifests_list$manifests)
+      
+      user_presets <- reactiveValues(filters = presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME")), 
+                                     #init = FALSE,
+                                     init = 0,
+                                     transcript_lists = transcript_lists, manifests_list = manifests_list)
     }
     
-    observe({
-      if(user_presets$init == FALSE){
-        print("init user preset"); req(reactiveValuesInputs$allelefrequencynum); req(reactiveValuesInputs$coveragenum); req(reactiveValuesInputs$qualitynum); req(reactiveValuesInputs$impact)
-        user_presets$init <- TRUE
-      }
-    })
+    # observe({
+    #   if(user_presets$init == FALSE){
+    #     print("init user preset"); req(reactiveValuesInputs$allelefrequencynum); req(reactiveValuesInputs$coveragenum); req(reactiveValuesInputs$qualitynum); req(reactiveValuesInputs$impact)
+    #     user_presets$init <- TRUE
+    #   }
+    # })
+    observeEvent(c(reactiveValuesInputs$allelefrequencynum,reactiveValuesInputs$coveragenum,reactiveValuesInputs$qualitynum,reactiveValuesInputs$impact),{  
+      print("init user preset"); req(reactiveValuesInputs$allelefrequencynum); req(reactiveValuesInputs$coveragenum); req(reactiveValuesInputs$qualitynum); req(reactiveValuesInputs$impact)
+      user_presets$init <- user_presets$init + 1
+    })    
     
     observeEvent(user_presets$init,ignoreInit = FALSE,ignoreNULL = FALSE,{
       req(user_presets$init)
       updateSelectInput(session = session, inputId = 'selectset', choices = c(user_presets$filters$name,"In use filter values"), selected = "In use filter values")
       updateSelectInput(session = session, inputId = 'selectlist', choices = user_presets$transcript_lists)
       updateSelectInput(session = session, inputId = 'trlistsetup', choices = c(user_presets$transcript_lists,"None"), selected = c("None"))
+      updateSelectInput(session = session, inputId = 'selectManifest', choices = user_presets$manifests_list)
+      updateSelectInput(session = session, inputId = 'manifestlistsetup', choices = c(user_presets$manifests_list,"None"), selected = c("None"))      
     })
     
     observeEvent(input$confirmadd,ignoreNULL = TRUE,{  
@@ -166,7 +207,9 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
                                    allelefrequencynum = 'Emptypreset',
                                    coveragenum = 'Emptypreset', 
                                    qualitynum = 'Emptypreset', 
-                                   impact = 'Emptypreset')
+                                   impact = 'Emptypreset', 
+                                   trlist = 'Emptypreset',
+                                   manifest = 'Emptypreset')
       DBI::dbWriteTable(conn = con, name ="presets", value = current_preset, append = TRUE)
       removeModal()
     })
@@ -193,37 +236,40 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
                                                  "coveragenum" = 0 ,
                                                  "qualitynum" = 0 ,
                                                  "impact" = 0,
-                                                 "trlist" = "None")
+                                                 "trlist" = "None", 
+                                                 "manifest" = "None")
 
     observeEvent(c(input$selectset,
                  reactiveValuesInputs$allelefrequencynum,
                  reactiveValuesInputs$coveragenum,
                  reactiveValuesInputs$qualitynum,
                  reactiveValuesInputs$impact,
-                 reactiveValuesInputs$trlist),ignoreNULL = TRUE, {
+                 reactiveValuesInputs$trlist,
+                 reactiveValuesInputs$manifest),ignoreNULL = TRUE, {
       req(input$selectset)
       req(user_presets$filters)
-      req(input$selectset)
-        if(input$selectset == 'In use filter values'){
+      if(input$selectset == 'In use filter values'){
         print('Load In use filter values')
         reactiveValuesInputsInside$allelefrequencynum <- reactiveValuesInputs$allelefrequencynum 
         reactiveValuesInputsInside$coveragenum <- reactiveValuesInputs$coveragenum
         reactiveValuesInputsInside$qualitynum <- reactiveValuesInputs$qualitynum
         reactiveValuesInputsInside$impact <- reactiveValuesInputs$impact
         reactiveValuesInputsInside$trlist <- reactiveValuesInputs$trlist
+        reactiveValuesInputsInside$manifest <- reactiveValuesInputs$manifest        
       } else {
         print(paste(' load ',input$selectset,' filter values'))
         presets <- DBI::dbReadTable(con,"presets")
         current_preset <- user_presets$filters %>% filter(name  == input$selectset)
         if(current_preset$allelefrequencynum != "Emptypreset"){
           print(paste0("reading", current_preset$name, " preset values..." ))
-          values <- DBI::dbGetQuery(conn = con, paste0("SELECT  allelefrequencynum, coveragenum , qualitynum , impact, trlist FROM presets ",
+          values <- DBI::dbGetQuery(conn = con, paste0("SELECT  allelefrequencynum, coveragenum , qualitynum , impact, trlist, manifest FROM presets ",
                                                 "WHERE user = '", Sys.getenv("SHINYPROXY_USERNAME"), "' AND name = '",input$selectset,"' ;"))
           reactiveValuesInputsInside$allelefrequencynum <- values$allelefrequencynum 
           reactiveValuesInputsInside$coveragenum <- values$coveragenum
           reactiveValuesInputsInside$qualitynum <- values$qualitynum
           reactiveValuesInputsInside$impact <- values$impact
           reactiveValuesInputsInside$trlist <- values$trlist
+          reactiveValuesInputsInside$manifest <- values$manifest  
         }
       }
     })
@@ -247,15 +293,21 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
     observeEvent(reactiveValuesInputsInside$trlist,{
       req(reactiveValuesInputsInside$trlist)
       updateSelectInput(session = session, inputId = 'trlistsetup', selected = reactiveValuesInputsInside$trlist)
-    })      
+    })
+    observeEvent(reactiveValuesInputsInside$manifest,{
+      req(reactiveValuesInputsInside$manifest)
+      updateSelectInput(session = session, inputId = 'manifestsetup', selected = reactiveValuesInputsInside$manifest)
+    })    
 
-    reactiveValuesInputstoSave <-  reactiveValues("allelefrequencynum" = 0, "coveragenum" = 0 , "qualitynum" = 0, "impact" = "Low","trlist" = "None")
-  
+    reactiveValuesInputstoSave <-  reactiveValues("allelefrequencynum" = 0, "coveragenum" = 0 , "qualitynum" = 0, 
+                                                  "impact" = "Low","trlist" = "None", "manifest" = "None")
+    
     observeEvent(input$allelefrequencynumsetup,{reactiveValuesInputstoSave$allelefrequencynum <-  input$allelefrequencynumsetup})
     observeEvent(input$coveragenumsetup,{reactiveValuesInputstoSave$coveragenum <- input$coveragenumsetup})
     observeEvent( input$qualitynumsetup,{reactiveValuesInputstoSave$qualitynum <- input$qualitynumsetup })
     observeEvent( input$impactsetup ,{reactiveValuesInputstoSave$impact <- input$impactsetup })
     observeEvent( input$trlistsetup,{reactiveValuesInputstoSave$trlist <- input$trlistsetup })
+    observeEvent( input$manifestsetup,{reactiveValuesInputstoSave$manifest <- input$manifestsetup })    
   
     observeEvent(input$save_params,{
       req(reactiveValuesInputstoSave); req(input$save_params); req(user_presets$filters); req(input$selectset);req(input$trlistsetup)
@@ -267,7 +319,8 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
                                             "coveragenum = '",reactiveValuesInputstoSave$coveragenum , "', ",
                                             "qualitynum = '", reactiveValuesInputstoSave$qualitynum , "', ",
                                             "impact = '", reactiveValuesInputstoSave$impact , "', ",
-                                            "trlist = '", input$trlistsetup, "' ",
+                                            "trlist = '", input$trlistsetup, "', ",
+                                            "manifest = '", input$manifestsetup, "' ",
                                             "WHERE user = '", Sys.getenv("SHINYPROXY_USERNAME"), "' AND name = '",input$selectset,"' ;"))
         presets <- DBI::dbReadTable(con,"presets")
         user_presets$filters <- presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
@@ -277,6 +330,7 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
         reactiveValuesInputsInside$qualitynum <- reactiveValuesInputstoSave$qualitynum
         reactiveValuesInputsInside$impact <- reactiveValuesInputstoSave$impact
         reactiveValuesInputsInside$trlist <- reactiveValuesInputstoSave$trlist
+        reactiveValuesInputsInside$manifest <- reactiveValuesInputstoSave$manifest        
       } else {
         showModal(modalDialog(size = 'l',
                               textInput(inputId = ns("newpresetnamecurrent"), label = "Name your preset here to save current parameters"),
@@ -287,7 +341,7 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
       }
     })
     observeEvent(input$confirmaddcurrent, {
-                  req(input$confirmaddcurrent); req(input$newpresetnamecurrent); req(reactiveValuesInputstoSave);req(input$trlistsetup)
+                  req(input$confirmaddcurrent); req(input$newpresetnamecurrent); req(reactiveValuesInputstoSave);req(input$trlistsetup);req(input$manifestsetup)
                   removeModal()
                   current_preset <- data.frame(
                     "allelefrequencynum" = reactiveValuesInputstoSave$allelefrequencynum ,
@@ -295,6 +349,7 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
                     "qualitynum" = reactiveValuesInputstoSave$qualitynum, 
                     "impact" = reactiveValuesInputstoSave$impact,
                     "trlist" = input$trlistsetup,
+                    "manifest" = input$manifestsetup,                    
                     "user" =  Sys.getenv("SHINYPROXY_USERNAME"),
                     "name" = input$newpresetnamecurrent)
                   DBI::dbWriteTable(conn = con, name = "presets", value = current_preset, append =TRUE)
@@ -302,13 +357,13 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
                   user_presets$filters <- presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
                   updateSelectInput(session = session, inputId = 'selectset', choices = c(user_presets$filters$name,"In use filter values"), selected = input$newpresetname)
                   sendSweetAlert(session = session,title = "Preset parameters saved !", 
-                                 text = paste(input$newpresetnamecurrent, 
-                                              "preset has been updated"),type = "success")
+                                 text = paste(input$newpresetnamecurrent, "preset has been updated"), type = "success")
                   reactiveValuesInputsInside$allelefrequencynum <- reactiveValuesInputstoSave$allelefrequencynum 
                   reactiveValuesInputsInside$coveragenum <- reactiveValuesInputstoSave$coveragenum
                   reactiveValuesInputsInside$qualitynum <- reactiveValuesInputstoSave$qualitynum
                   reactiveValuesInputsInside$impact <- reactiveValuesInputstoSave$impact
                   reactiveValuesInputsInside$trlist <- reactiveValuesInputstoSave$trlist
+                  reactiveValuesInputsInside$manifest <- reactiveValuesInputstoSave$manifest                  
     })
   
     ######################################## MY TRANSCRIPTS  ##################################
@@ -321,22 +376,14 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
         tryCatch({
           data <- read_delim(file, col_types = cols(Transcripts = col_character(), Genes = col_character()),delim = input$separator)
           return(data)
-        }, error = function(e) {
-          print(e)
-        })
+        }, error = function(e) {print(e)})        
       })
     # Check if the file format is correct
-    check_format <- function(data) {
-      if (all(c("Transcripts", "Genes") %in% colnames(data))) {
-        return(TRUE) } else { return(FALSE)
-      }
-    }
+    check_format <- function(data) {if (all(c("Transcripts", "Genes") %in% colnames(data))) {return(TRUE) } else { return(FALSE)}}
     # Display the data if the format is correct
     output$data_table <- renderTable({
       req(file_data())
-      if (check_format(file_data())) {
-        file_data()
-      }
+      if (check_format(file_data())) {file_data()}
     })
     output$transcriptlistui <- renderUI({
       if (isTruthy(check_format(file_data()))) {
@@ -348,9 +395,7 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
             br(), actionButton(width = '100%', inputId = ns('addtranscriptlist'), icon = NULL, label = 'Add this list')
             )
         )
-      } else {
-        "File format is not correct. Make sure the file contains 'Transcripts' and 'Genes' columns."
-      }
+      } else { "File format is not correct. Make sure the file contains 'Transcripts' and 'Genes' columns."}
     })
     # Display the example correctly formatted data
     output$example_data_table <- renderTable({
@@ -401,6 +446,94 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
                                     h3("Example of Correctly Formatted Data:"),br(),
                                     tableOutput(ns("example_data_table")),br(),
                                     h3("File should be a text file with column separator either a comma, a tabulation, a semicolon, or a space")),
+                            easyClose = TRUE,
+                            footer = tagList(modalButton("Cancel"))
+      ))
+    })
+
+    ######################################## MY GENOMIC REGIONS  ##################################
+    
+    observeEvent(input$addnewmanifest,{
+      req(input$addnewmanifest)
+      showModal(modalDialog(size = 'l',
+                            column(width =6,
+                                   textInput(inputId = ns("newmanifestname"), label = "Name your manifest here", width = "100%")
+                            ),
+                            easyClose = TRUE,
+                            footer = tagList(modalButton("Cancel"),
+                                             actionButton(ns("confirmManifest"),"Add this manifest")))
+      )
+    })
+    
+    # Read the uploaded file and check its format
+    file_dataManifest <- reactive({
+      req(input$newmanifestfile$datapath)
+      req(input$separatorManifest)
+      file <- input$newmanifestfile$datapath
+      tryCatch({
+        data <- read_delim(file, col_types = cols(chromosome = col_character(), start = col_character(), end = col_character()),delim = input$separatorManifest)
+        return(data)
+      }, error = function(e) {print(e)})
+    })
+    # Check if the file format is correct
+    check_formatManifest <- function(data) {
+      if (all(c("chromosome", "start","end") %in% colnames(data))) {return(TRUE) } else {return(FALSE)}
+    }
+    # Display the data if the format is correct
+    output$data_tableManifest <- renderTable({
+      req(file_dataManifest())
+      if (check_formatManifest(file_dataManifest())) {file_dataManifest()}
+    })
+    output$Manifestsui <- renderUI({
+      if (isTruthy(check_formatManifest(file_dataManifest()))) {
+        fluidRow(
+          column(width = 8 ,
+                 br(), "File format is correct. Here is your currently uploaded manifest :",br(),
+                 tableOutput(ns("data_tableManifest"))),
+          column(width = 4, 
+                 br(), actionButton(width = '100%', inputId = ns('addnewmanifest'), icon = NULL, label = 'Add this manifest')
+          )
+        )
+      } else { "File format is not correct. Make sure the file contains 'chromosome' and 'start' and 'end' columns." }
+    })
+    output$example_data_tableManifest <- renderTable({
+      data.frame(
+        chromosome = c("1", "1", "1"),
+        start = c("11169311", "11174344", "11184507"),
+        end = c("11169447", "11174556", "11184709")
+      )
+    })
+    observeEvent(input$confirmManifest, {
+      req(input$confirmManifest)
+      req(input$newmanifestname)
+      req(file_dataManifest())
+      removeModal()
+      dbExecute(conn = con, "CREATE TABLE IF NOT EXISTS manifests_list (user_id TEXT, manifests TEXT);")
+      manifest_name <- paste(input$newmanifestname, Sys.getenv("SHINYPROXY_USERNAME"), sep = "_")
+      dbWriteTable(conn = con, name = manifest_name, value = file_dataManifest(), row.names = FALSE, overwrite = TRUE)
+      add_to_list <- data.frame(user_id = Sys.getenv("SHINYPROXY_USERNAME") , manifests = manifest_name)
+      dbWriteTable(conn = con, name = "manifests_list", value = add_to_list, row.names = FALSE, append = TRUE)
+      user_presets$manifests_list <- c(user_presets$manifests_list, input$newmanifestname)
+      updateSelectInput(session = session, inputId = 'manifestsetup', choices = c("None", user_presets$manifests_list))
+      updateSelectInput(session = session, inputId = 'selectManifest', choices = user_presets$manifests_list, selected = input$newmanifestname)
+      sendSweetAlert(session = session,title = "Manifest added to database", text = paste(input$newmanifestname, "has been added to the manifest list of the user : ", Sys.getenv("SHINYPROXY_USERNAME")),type = "success")
+    })
+    observeEvent(input$removeManifest,{
+      req(input$removeManifest)
+      req(input$selectManifest)
+      print(paste0("DROP TABLE IF EXISTS ",input$selectManifest, "_" , Sys.getenv("SHINYPROXY_USERNAME"),"_manifest;"))
+      DBI::dbSendQuery(conn = con,paste0("DROP TABLE IF EXISTS ",input$selectManifest, "_" , Sys.getenv("SHINYPROXY_USERNAME"),"_manifest;"))
+      user_presets$manifests_list <- user_presets$manifests_list[user_presets$manifests_list != input$selectManifest]
+      updateSelectInput(session = session, inputId = 'selectManifest', choices = c(user_presets$manifests_list ,"None"))
+    })
+    
+    observeEvent(input$dropdownExampleManifest,{
+      req(input$dropdownExampleManifest)
+      showModal(modalDialog(size = 'l',
+                            column(width = 12, 
+                                   h3("Example of Correctly Formatted Data:"),br(),
+                                   tableOutput(ns("example_data_tableManifest")),br(),
+                                   h3("File should be a text file with column separator either a comma, a tabulation, a semicolon, or a space")),
                             easyClose = TRUE,
                             footer = tagList(modalButton("Cancel"))
       ))

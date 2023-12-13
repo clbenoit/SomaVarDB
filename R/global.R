@@ -14,9 +14,11 @@ global <- quote({
                           coveragenum = "mysetup", 
                           qualitynum = "mysetup", 
                           impact = "mysetup",
-                          trlist = "mysetup")
-                          #values = "mysetup")
+                          trlist = "mysetup",
+                          manifest = "mysetup")
     DBI::dbWriteTable(con, name = "presets", value = presets, overwrite = TRUE)}
+  
+  DBI::dbExecute(conn = con, "CREATE TABLE IF NOT EXISTS manifests_list (user_id TEXT, manifests TEXT);")  
   
   tictoc::toc()
 })
