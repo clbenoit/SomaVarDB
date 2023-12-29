@@ -37,28 +37,36 @@ mod_parameters_management_ui <- function(id, modal  = NULL, reactiveValues = NUL
                                column(width = 12, h1("Selected preset values : "))),br(),
                              fluidRow(
                                column(width = 4,
-                                      h2("Allele frequency :"),
-                                      numericInput(inputId = ns("allelefrequencynumsetup"), label = NULL ,width = '100%',step = 0.01,value = 0)),
+                                      h2("Allele frequency max:"),
+                                      numericInput(inputId = ns("allelefrequencynummaxsetup"), label = NULL ,width = '100%',step = 0.01,value = 1)),
+                               column(width = 4,
+                                      h2("Allele frequency min:"),
+                                      numericInput(inputId = ns("allelefrequencynumminsetup"), label = NULL ,width = '100%',step = 0.01,value = 0)),                               
                                column(width = 4,
                                       h2("Coverage :"),
-                                      numericInput(inputId = ns("coveragenumsetup"), label = NULL ,width = '100%',step = 0.01,value = 0)),
-                               column(width = 4,
-                                      h2("Quality :"),
-                                      numericInput(inputId = ns("qualitynumsetup"), label = NULL ,width = '100%',step = 0.01,value = 0))),
+                                      numericInput(inputId = ns("coveragenumsetup"), label = NULL ,width = '100%',step = 0.01,value = 0))),
                              fluidRow(
                                column(width = 4,
-                                      h2("Impact :"),
-                                      selectInput(inputId = ns("impactsetup"), label = NULL ,width = '100%',
-                                                  choices = c("Low", "Moderate","High"))),
+                                      h2("Quality :"),
+                                      numericInput(inputId = ns("qualitynumsetup"), label = NULL ,width = '100%',step = 0.01,value = 0)),
+                               column(width = 4,
+                                      h2("gnomAd frequency :"),  
+                                      numericInput(inputId = ns("gnomadnumsetup"), label = NULL ,width = '100%',step = 0.01,value = 0, max = 1, min = 0)),
+                               column(width = 4,
+                                      h2("Prefered manifest :"),
+                                      selectInput(inputId = ns("manifestlistsetup"), label = NULL ,width = '100%',                                      
+                                                  choices = "None", selected = "None"))                               
+                              ),
+                             fluidRow(
                                column(width = 4,
                                       h2("Prefered transcripts list :"),
                                       selectInput(inputId = ns("trlistsetup"), label = NULL ,width = '100%',
                                                   choices = "None", selected = "None")),
                                column(width = 4,
-                                      h2("Prefered manifest :"),  
-                                      selectInput(inputId = ns("manifestsetup"), label = NULL ,width = '100%',
-                                                  choices = "None", selected = "None"))                               
-                              ),
+                                      h2("Impact :"),  
+                                      selectInput(inputId = ns("impactsetup"), label = NULL ,width = '100%',
+                                                  choices = c("Low", "Moderate","High"), selected = "Low"))
+                             ),                             
                              fluidRow(column(width = 12,actionButton(inputId = ns('save_params'), "Save current parameters")))
                     ),
                   tabPanel("My transcripts",
@@ -145,7 +153,7 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
 
       transcript_lists <- gsub(paste0("_",Sys.getenv("SHINYPROXY_USERNAME")),"",gsub("_transcriptlist","",transcript_lists$name))
   
-      manifests_list <- DBI::dbReadTable(conn = con, name = "manifests_list") %>% filter(user_id == manifests)
+      manifests_list <- DBI::dbReadTable(conn = con, name = "manifests_list") %>% filter(user_id == Sys.getenv("SHINYPROXY_USERNAME"))
       manifests_list <- gsub(paste0("_",Sys.getenv("SHINYPROXY_USERNAME")),"",manifests_list$manifests)
       
       user_presets <- reactiveValues(filters = presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME")), 
@@ -154,24 +162,20 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
                                      transcript_lists = transcript_lists, manifests_list = manifests_list)
     }
     
-    # observe({
-    #   if(user_presets$init == FALSE){
-    #     print("init user preset"); req(reactiveValuesInputs$allelefrequencynum); req(reactiveValuesInputs$coveragenum); req(reactiveValuesInputs$qualitynum); req(reactiveValuesInputs$impact)
-    #     user_presets$init <- TRUE
-    #   }
-    # })
-    observeEvent(c(reactiveValuesInputs$allelefrequencynum,reactiveValuesInputs$coveragenum,reactiveValuesInputs$qualitynum,reactiveValuesInputs$impact),{  
-      print("init user preset"); req(reactiveValuesInputs$allelefrequencynum); req(reactiveValuesInputs$coveragenum); req(reactiveValuesInputs$qualitynum); req(reactiveValuesInputs$impact)
+    observeEvent(c(reactiveValuesInputs$allelefrequencynummax,reactiveValuesInputs$allelefrequencynummin,reactiveValuesInputs$coveragenum,reactiveValuesInputs$qualitynum,reactiveValuesInputs$impact,reactiveValuesInputs$gnomadnum),{  
+      print("init user preset");req(reactiveValuesInputs$allelefrequencynummax); req(reactiveValuesInputs$allelefrequencynummin); req(reactiveValuesInputs$coveragenum); req(reactiveValuesInputs$qualitynum); req(reactiveValuesInputs$impact);req(reactiveValuesInputs$gnomadnum)
       user_presets$init <- user_presets$init + 1
     })    
     
     observeEvent(user_presets$init,ignoreInit = FALSE,ignoreNULL = FALSE,{
       req(user_presets$init)
+      print("update user metadata (trlist,presetslist,manifestslist...) in mod_parameters_management module")
+      print(user_presets$manifests_list)
       updateSelectInput(session = session, inputId = 'selectset', choices = c(user_presets$filters$name,"In use filter values"), selected = "In use filter values")
       updateSelectInput(session = session, inputId = 'selectlist', choices = user_presets$transcript_lists)
       updateSelectInput(session = session, inputId = 'trlistsetup', choices = c(user_presets$transcript_lists,"None"), selected = c("None"))
       updateSelectInput(session = session, inputId = 'selectManifest', choices = user_presets$manifests_list)
-      updateSelectInput(session = session, inputId = 'manifestlistsetup', choices = c(user_presets$manifests_list,"None"), selected = c("None"))      
+      updateSelectInput(session = session, inputId = 'manifestlistsetup', choices = c(user_presets$manifests_list,"None"), selected = c("None"))
     })
     
     observeEvent(input$confirmadd,ignoreNULL = TRUE,{  
@@ -204,9 +208,11 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
       req(input$newpresetname)
       req(input$confirmadd)
       current_preset <- data.frame(user = Sys.getenv("SHINYPROXY_USERNAME"), name = input$newpresetname, 
-                                   allelefrequencynum = 'Emptypreset',
+                                   allelefrequencynumin = 'Emptypreset',
+                                   allelefrequencynummax = 'Emptypreset',
                                    coveragenum = 'Emptypreset', 
-                                   qualitynum = 'Emptypreset', 
+                                   qualitynum = 'Emptypreset',
+                                   gnomadnum = 'Emptypreset', 
                                    impact = 'Emptypreset', 
                                    trlist = 'Emptypreset',
                                    manifest = 'Emptypreset')
@@ -232,17 +238,20 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
       DBI::dbSendQuery(conn = con,paste0("DELETE FROM presets WHERE user = '", Sys.getenv("SHINYPROXY_USERNAME"), "' AND name = '",input$selectset,"' ;"))
       removeModal()
     })
-    reactiveValuesInputsInside <- reactiveValues("allelefrequencynum" = 0,
+    reactiveValuesInputsInside <- reactiveValues("allelefrequencynummin" = 0,
+                                                 "allelefrequencynummax" = 1,
                                                  "coveragenum" = 0 ,
                                                  "qualitynum" = 0 ,
+                                                 "gnomadnum" = 0,                                                 
                                                  "impact" = 0,
                                                  "trlist" = "None", 
                                                  "manifest" = "None")
 
     observeEvent(c(input$selectset,
-                 reactiveValuesInputs$allelefrequencynum,
+                 reactiveValuesInputs$allelefrequency,
                  reactiveValuesInputs$coveragenum,
                  reactiveValuesInputs$qualitynum,
+                 reactiveValuesInputs$gnomadfrequency,                 
                  reactiveValuesInputs$impact,
                  reactiveValuesInputs$trlist,
                  reactiveValuesInputs$manifest),ignoreNULL = TRUE, {
@@ -250,23 +259,26 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
       req(user_presets$filters)
       if(input$selectset == 'In use filter values'){
         print('Load In use filter values')
-        reactiveValuesInputsInside$allelefrequencynum <- reactiveValuesInputs$allelefrequencynum 
+        reactiveValuesInputsInside$allelefrequencynummax <- reactiveValuesInputs$allelefrequency[2]
+        reactiveValuesInputsInside$allelefrequencynummin <- reactiveValuesInputs$allelefrequency[1]
         reactiveValuesInputsInside$coveragenum <- reactiveValuesInputs$coveragenum
         reactiveValuesInputsInside$qualitynum <- reactiveValuesInputs$qualitynum
+        reactiveValuesInputsInside$gnomadnum <- reactiveValuesInputs$gnomadfrequency        
         reactiveValuesInputsInside$impact <- reactiveValuesInputs$impact
         reactiveValuesInputsInside$trlist <- reactiveValuesInputs$trlist
         reactiveValuesInputsInside$manifest <- reactiveValuesInputs$manifest        
       } else {
-        print(paste(' load ',input$selectset,' filter values'))
+        print(paste('Load ',input$selectset,' preset filters values (inside module)'))
         presets <- DBI::dbReadTable(con,"presets")
         current_preset <- user_presets$filters %>% filter(name  == input$selectset)
-        if(current_preset$allelefrequencynum != "Emptypreset"){
-          print(paste0("reading", current_preset$name, " preset values..." ))
-          values <- DBI::dbGetQuery(conn = con, paste0("SELECT  allelefrequencynum, coveragenum , qualitynum , impact, trlist, manifest FROM presets ",
+        if(current_preset$allelefrequencynummax != "Emptypreset"){
+          values <- DBI::dbGetQuery(conn = con, paste0("SELECT  allelefrequencynummax, allelefrequencynummin, coveragenum , qualitynum , gnomadnum , impact, trlist, manifest FROM presets ",
                                                 "WHERE user = '", Sys.getenv("SHINYPROXY_USERNAME"), "' AND name = '",input$selectset,"' ;"))
-          reactiveValuesInputsInside$allelefrequencynum <- values$allelefrequencynum 
+          reactiveValuesInputsInside$allelefrequencynummax <- values$allelefrequencynummax
+          reactiveValuesInputsInside$allelefrequencynummin <- values$allelefrequencynummin
           reactiveValuesInputsInside$coveragenum <- values$coveragenum
           reactiveValuesInputsInside$qualitynum <- values$qualitynum
+          reactiveValuesInputsInside$gnomadnum <- values$gnomadnum          
           reactiveValuesInputsInside$impact <- values$impact
           reactiveValuesInputsInside$trlist <- values$trlist
           reactiveValuesInputsInside$manifest <- values$manifest  
@@ -274,9 +286,13 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
       }
     })
 
-    observeEvent(reactiveValuesInputsInside$allelefrequencynum,{
-      req(reactiveValuesInputsInside$allelefrequencynum)
-      updateNumericInput(session = session, inputId = 'allelefrequencynumsetup', value = reactiveValuesInputsInside$allelefrequencynum)
+    observeEvent(reactiveValuesInputsInside$allelefrequencynummax,{
+      req(reactiveValuesInputsInside$allelefrequencynummax)
+      updateNumericInput(session = session, inputId = 'allelefrequencynummaxsetup', value = reactiveValuesInputsInside$allelefrequencynummax)
+    })
+    observeEvent(reactiveValuesInputsInside$allelefrequencynummin,{
+      req(reactiveValuesInputsInside$allelefrequencynummin)
+      updateNumericInput(session = session, inputId = 'allelefrequencynumminsetup', value = reactiveValuesInputsInside$allelefrequencynummin)
     })
     observeEvent(reactiveValuesInputsInside$coveragenum,{
       req(reactiveValuesInputsInside$coveragenum)
@@ -285,6 +301,10 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
     observeEvent(reactiveValuesInputsInside$qualitynum,{
       req(reactiveValuesInputsInside$qualitynum)
       updateNumericInput(session = session, inputId = 'qualitynumsetup', value = reactiveValuesInputsInside$qualitynum)
+    })
+    observeEvent(reactiveValuesInputsInside$gnomadnum,{
+      req(reactiveValuesInputsInside$gnomadnum)
+      updateNumericInput(session = session, inputId = 'gnomadnumsetup', value = reactiveValuesInputsInside$gnomadnum)
     })
     observeEvent(reactiveValuesInputsInside$impact,{
       req(reactiveValuesInputsInside$impact)
@@ -296,38 +316,47 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
     })
     observeEvent(reactiveValuesInputsInside$manifest,{
       req(reactiveValuesInputsInside$manifest)
-      updateSelectInput(session = session, inputId = 'manifestsetup', selected = reactiveValuesInputsInside$manifest)
+      updateSelectInput(session = session, inputId = 'manifestlistsetup', selected = reactiveValuesInputsInside$manifest)
     })    
 
-    reactiveValuesInputstoSave <-  reactiveValues("allelefrequencynum" = 0, "coveragenum" = 0 , "qualitynum" = 0, 
+    reactiveValuesInputstoSave <-  reactiveValues("allelefrequencynummax" = 0,"allelefrequencynummin" = 1, "coveragenum" = 0 , "qualitynum" = 0, "gnomadnum" = 0,
                                                   "impact" = "Low","trlist" = "None", "manifest" = "None")
     
-    observeEvent(input$allelefrequencynumsetup,{reactiveValuesInputstoSave$allelefrequencynum <-  input$allelefrequencynumsetup})
+    observeEvent(input$allelefrequencynumminsetup,{reactiveValuesInputstoSave$allelefrequencynummin <-  input$allelefrequencynumminsetup})
+    observeEvent(input$allelefrequencynummaxsetup,{reactiveValuesInputstoSave$allelefrequencynummax <-  input$allelefrequencynummaxsetup})    
     observeEvent(input$coveragenumsetup,{reactiveValuesInputstoSave$coveragenum <- input$coveragenumsetup})
     observeEvent( input$qualitynumsetup,{reactiveValuesInputstoSave$qualitynum <- input$qualitynumsetup })
+    observeEvent( input$gnomadnumsetup,{reactiveValuesInputstoSave$gnomadnum <- input$gnomadnumsetup })    
     observeEvent( input$impactsetup ,{reactiveValuesInputstoSave$impact <- input$impactsetup })
     observeEvent( input$trlistsetup,{reactiveValuesInputstoSave$trlist <- input$trlistsetup })
-    observeEvent( input$manifestsetup,{reactiveValuesInputstoSave$manifest <- input$manifestsetup })    
+    observeEvent( input$manifestlistsetup,{reactiveValuesInputstoSave$manifest <- input$manifestlistsetup })  
   
     observeEvent(input$save_params,{
-      req(reactiveValuesInputstoSave); req(input$save_params); req(user_presets$filters); req(input$selectset);req(input$trlistsetup)
+      req(reactiveValuesInputstoSave); req(input$save_params); req(user_presets$filters); req(input$selectset);req(input$trlistsetup);req(input$manifestlistsetup)
       print("Saving current parameters")
       current_preset <- user_presets$filters %>% filter(name  == input$selectset)
       if(nrow(current_preset) >=1){
         DBI::dbSendQuery(conn = con, paste0("UPDATE presets SET ",
-                                            "allelefrequencynum = '",reactiveValuesInputstoSave$allelefrequencynum , "', ",
+                                            "allelefrequencynummin = '",reactiveValuesInputstoSave$allelefrequencynummin , "', ",
+                                            "allelefrequencynummax = '",reactiveValuesInputstoSave$allelefrequencynummax , "', ",                                            
                                             "coveragenum = '",reactiveValuesInputstoSave$coveragenum , "', ",
                                             "qualitynum = '", reactiveValuesInputstoSave$qualitynum , "', ",
+                                            "gnomadnum = '", reactiveValuesInputstoSave$gnomadnum , "', ",                                            
                                             "impact = '", reactiveValuesInputstoSave$impact , "', ",
                                             "trlist = '", input$trlistsetup, "', ",
-                                            "manifest = '", input$manifestsetup, "' ",
+                                            "manifest = '", input$manifestlistsetup, "' ",
                                             "WHERE user = '", Sys.getenv("SHINYPROXY_USERNAME"), "' AND name = '",input$selectset,"' ;"))
         presets <- DBI::dbReadTable(con,"presets")
         user_presets$filters <- presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
-        sendSweetAlert(session = session,title = "Preset parameters saved !", text = paste(input$selectset, "preset has been updated"),type = "success")
-        reactiveValuesInputsInside$allelefrequencynum <- reactiveValuesInputstoSave$allelefrequencynum 
+        sendSweetAlert(session = session,title = "Preset parameters saved !", 
+                       text = HTML(paste("<p style='color:#086A87;'>", input$selectset, "</p>","preset has been updated")),
+                       html = TRUE,
+                       type = "success")
+        reactiveValuesInputsInside$allelefrequencynummax <- reactiveValuesInputstoSave$allelefrequencynummax
+        reactiveValuesInputsInside$allelefrequencynummin <- reactiveValuesInputstoSave$allelefrequencynunmin        
         reactiveValuesInputsInside$coveragenum <- reactiveValuesInputstoSave$coveragenum
         reactiveValuesInputsInside$qualitynum <- reactiveValuesInputstoSave$qualitynum
+        reactiveValuesInputsInside$gnomadnum <- reactiveValuesInputstoSave$gnomadnum        
         reactiveValuesInputsInside$impact <- reactiveValuesInputstoSave$impact
         reactiveValuesInputsInside$trlist <- reactiveValuesInputstoSave$trlist
         reactiveValuesInputsInside$manifest <- reactiveValuesInputstoSave$manifest        
@@ -341,26 +370,31 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
       }
     })
     observeEvent(input$confirmaddcurrent, {
-                  req(input$confirmaddcurrent); req(input$newpresetnamecurrent); req(reactiveValuesInputstoSave);req(input$trlistsetup);req(input$manifestsetup)
+                  req(input$confirmaddcurrent); req(input$newpresetnamecurrent); req(reactiveValuesInputstoSave);req(input$trlistsetup);req(input$manifestlistsetup)
                   removeModal()
                   current_preset <- data.frame(
-                    "allelefrequencynum" = reactiveValuesInputstoSave$allelefrequencynum ,
+                    "allelefrequencynummin" = reactiveValuesInputstoSave$allelefrequencynummin ,
+                    "allelefrequencynummax" = reactiveValuesInputstoSave$allelefrequencynummax ,                    
                     "coveragenum" = reactiveValuesInputstoSave$coveragenum,
                     "qualitynum" = reactiveValuesInputstoSave$qualitynum, 
+                    "gnomadnum" = reactiveValuesInputstoSave$gnomadnum,                    
                     "impact" = reactiveValuesInputstoSave$impact,
                     "trlist" = input$trlistsetup,
-                    "manifest" = input$manifestsetup,                    
+                    "manifest" = input$manifestlistsetup,                    
                     "user" =  Sys.getenv("SHINYPROXY_USERNAME"),
                     "name" = input$newpresetnamecurrent)
                   DBI::dbWriteTable(conn = con, name = "presets", value = current_preset, append =TRUE)
                   presets <- DBI::dbReadTable(con,"presets")
                   user_presets$filters <- presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
                   updateSelectInput(session = session, inputId = 'selectset', choices = c(user_presets$filters$name,"In use filter values"), selected = input$newpresetname)
-                  sendSweetAlert(session = session,title = "Preset parameters saved !", 
-                                 text = paste(input$newpresetnamecurrent, "preset has been updated"), type = "success")
-                  reactiveValuesInputsInside$allelefrequencynum <- reactiveValuesInputstoSave$allelefrequencynum 
+                  sendSweetAlert(session = session,title = HTML(paste0("<p style='color:#086A87;'>",input$newpresetnamecurrent,"</p>", " Parameters preset added !")), 
+                                 text = "You might have to restart the app to see it available in data analysis window",
+                                 type = "success")
+                  reactiveValuesInputsInside$allelefrequencynummin <- reactiveValuesInputstoSave$allelefrequencynummin
+                  reactiveValuesInputsInside$allelefrequencynummax <- reactiveValuesInputstoSave$allelefrequencynummax                   
                   reactiveValuesInputsInside$coveragenum <- reactiveValuesInputstoSave$coveragenum
                   reactiveValuesInputsInside$qualitynum <- reactiveValuesInputstoSave$qualitynum
+                  reactiveValuesInputsInside$gnomadnum <- reactiveValuesInputstoSave$gnomadnum                  
                   reactiveValuesInputsInside$impact <- reactiveValuesInputstoSave$impact
                   reactiveValuesInputsInside$trlist <- reactiveValuesInputstoSave$trlist
                   reactiveValuesInputsInside$manifest <- reactiveValuesInputstoSave$manifest                  
@@ -425,10 +459,10 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
       updateSelectInput(session = session, inputId = 'selectlist', choices = user_presets$transcript_lists, selected = input$newtranscriptlistname)
       updateSelectInput(session = session, inputId = 'trlistsetup', choices = c("None", user_presets$transcript_lists))
       sendSweetAlert(session = session,
-                     title = "Transcript List added", 
-                     text = paste(input$newtranscriptlistname, "preset has been updated"),
+                     title = HTML(paste0("<p style='color:#086A87;'>", input$newtranscriptlistname,"</p>",
+                                         " Transcript List added !")), 
+                     text = "You might have to restart the app to see it available in data analysis window",
                      type = "success")
-      
     })
     observeEvent(input$removelist,{
       req(input$removelist)
@@ -514,9 +548,16 @@ mod_parameters_management_server <- function(id, conn = NULL, modal = FALSE, rea
       add_to_list <- data.frame(user_id = Sys.getenv("SHINYPROXY_USERNAME") , manifests = manifest_name)
       dbWriteTable(conn = con, name = "manifests_list", value = add_to_list, row.names = FALSE, append = TRUE)
       user_presets$manifests_list <- c(user_presets$manifests_list, input$newmanifestname)
-      updateSelectInput(session = session, inputId = 'manifestsetup', choices = c("None", user_presets$manifests_list))
+      updateSelectInput(session = session, inputId = 'manifestlistsetup', choices = c("None", user_presets$manifests_list))
       updateSelectInput(session = session, inputId = 'selectManifest', choices = user_presets$manifests_list, selected = input$newmanifestname)
-      sendSweetAlert(session = session,title = "Manifest added to database", text = paste(input$newmanifestname, "has been added to the manifest list of the user : ", Sys.getenv("SHINYPROXY_USERNAME")),type = "success")
+      sendSweetAlert(session = session,
+                     title = "Manifest added to database !", 
+                     text = HTML(paste0("<p style='color:#086A87;'><b>", input$newmanifestname,"</b> : </p>", 
+                                        " has been added to the manifests list of the user : ",
+                                        "<p style='color:#086A87;'><b>", Sys.getenv("SHINYPROXY_USERNAME"),"</b></p>",
+                                        "You might have to restart the app to see it available in the data analysis window")), 
+                     html = TRUE,
+                     type = "success")
     })
     observeEvent(input$removeManifest,{
       req(input$removeManifest)
