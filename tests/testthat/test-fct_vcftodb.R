@@ -4,7 +4,6 @@ testthat::test_that("vcftodb works", {
   prefix <- "test"
   vcf_list <- list.files(system.file("extdata","testdata", package = "SomaVarDB"), pattern = ".gz$", full.names = TRUE)
 
-  tictoc::tic()
   future::plan("multicore")
   options(future.globals.maxSize = 10000*1024^2)
   options(mc.cores = 3)
@@ -12,8 +11,7 @@ testthat::test_that("vcftodb works", {
     print(vcf)
     SomaVarDB::buildDB_seqone(prefix = prefix, vcf_name = vcf, db_path = db_path)
   }
-  tictoc::toc()
-  
+
   SomaVarDB::addMDtodb(db_path = db_path, prefix = prefix, API_key = "l6ln_tsCbdZk8ICVpy6z86vhhb2rFUkFFTfV3wq7L-4", workers = 2)
   
   SomaVarDB::update_db_metadata(db_path = db_path, prefix = prefix)

@@ -9,6 +9,8 @@
 #' @importFrom stringr str_replace_all str_detect str_c str_split
 #' @importFrom tidyr separate unnest gather spread replace_na pivot_wider
 #' @importFrom rlang enquo
+#' @importFrom reshape2 melt
+#' @importFrom IRanges stack
 #' @importFrom promises promise_all future_promise %...>%
 #' @return The return value, if any, from executing the function.
 #'
@@ -18,21 +20,19 @@ buildDB_sarek <- function(prefix = NULL, vcf_name = NULL, db_path = NULL) {
 
   #db_path <- system.file("extdata","testdata", package = "SomaVarDB")
   #prefix <- "test"
-  #vcf_name <- "/home/ptngs/Documents/haplotypecaller/23A1424_S3/23A1424_S3.haplotypecaller.filtered_VEP.ann.vcf.gz"
-  #vcf_name <- "/home/ptngs/Documents/haplotypecaller/23A1424_S3/23A1424_S3.haplotypecaller.filtered_VEP.ann.NoID.vcf.gz"
+  #vcf_name <- system.file("extdata","testdata/vcf_name", package = "SomaVarDB")
+  # library(VariantAnnotation)
+  # library(tibble)  
+  # library(magrittr) 
+  # library(dplyr)
+  # library(stringr)
+  # library(tidyr)
+  # library(rlang)
+  # library(promises)
+  # library(DBI)
+  # library(RSQLite)
   
   process_sample <- FALSE
-
-  library(VariantAnnotation)
-  library(tibble)  
-  library(magrittr) 
-  library(dplyr)
-  library(stringr)
-  library(tidyr)
-  library(rlang)
-  library(promises)
-  library(DBI)
-  library(RSQLite)
 
   db_name <- file.path(db_path,paste0(prefix, ".db"))
   #### A function to convert genotypes to dosage

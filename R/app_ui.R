@@ -124,7 +124,7 @@ home_page <- div(
                                         #   document.getElementById(\"multiqc\").onload = function() {
                                         #     var iframeDocument = document.getElementById('multiqc').contentDocument;
                                         #     var scriptElement = iframeDocument.createElement(\"script\");
-                                        #     scriptElement.innerHTML = \"console.log('Script exécuté dans l\'iframe');\";
+                                        #     scriptElement.innerHTML = \"console.log('Script execute dans l\'iframe');\";
                                         #     iframeDocument.body.appendChild(scriptElement);
                                         #   };
                                         # "))
@@ -138,15 +138,18 @@ home_page <- div(
                                         #     }
                                         #   };
                                         # "))
-                    )),
-                    footer = dashboardFooter(
-                      left = HTML('Support: <b>cbenoit3@chu-grenoble.fr</b>'),
-                      right = HTML('<a href="https://biologie.chu-grenoble.fr/biologie-moleculaire" target="_blank"><b>Plateforme de biologie moléculaire du CHU Grenoble Alpes</b></a>')
-                    )
+                                ))
+                  ),
+                  footer = tags$footer(class = "main-footer", 
+                                       HTML("<div class=\"pull-right hidden-xs\">
+                                             <a href=\"https://clbenoit.github.io/portfolio/projects/germlinevardb\" target=\"_blank\"><b>About the app</b></a>
+                                             </div>
+                                             Support: <b>benoitclement.data@gmail.com</b>"
+                                       )
+                                     )
+          )
     )
-  )
-)# end of home_page
-)
+) # end of home_page
  
 
 fluidPage(

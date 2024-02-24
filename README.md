@@ -5,7 +5,7 @@ R 4.2.0
 
 # Installation
 
-`devtools::install_github("Plateforme-Data-NGS-CHUGA/SomaVarDB")`
+`devtools::install_github("clbenoit/SomaVarDB")`
 
 # Configuration
 

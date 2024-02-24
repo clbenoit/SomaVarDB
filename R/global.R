@@ -1,6 +1,6 @@
 global <- quote({
   db_name <- file.path(golem::get_golem_options("db_path"),paste0(golem::get_golem_options("prefix"), ".db"))
-  tictoc::tic(paste0("loging in ",db_name," database"))
+  #tictoc::tic(paste0("loging in ",db_name," database"))
   
   options(future.globals.maxSize = 10000*1024^2)
   con <- DBI::dbConnect(RSQLite::SQLite(), db_name)
@@ -28,6 +28,6 @@ global <- quote({
   
   DBI::dbExecute(conn = con, "CREATE TABLE IF NOT EXISTS manifests_list (user_id TEXT, manifests TEXT);")  
   
-  tictoc::toc()
+  #tictoc::toc()
 })
 

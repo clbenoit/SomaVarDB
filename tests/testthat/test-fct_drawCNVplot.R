@@ -1,18 +1,18 @@
 testthat::test_that("draw CNV plot works", {
   
-  #cnvfile_path <- "/home/ptngs/ClinicalResultsBrowser_vcfs/SEQONE_DATABASE_EXPORTS/CNVs/cnv.tsv"
-  #prefix = "splitted_myogre_full"
-  #db_path = "/home/ptngs/testdb/"
-  cnvfile_path <- NULL
-  prefix = NULL
-  db_path = NULL
-  plota <- SomaVarDB::drawCNVplot_seqone(
-                   cnvfile_path = cnvfile_path,
-                   prefix = prefix, db_path = db_path, 
-                   selected_sample = "22A0173",
-                   background_samples = "22A1881",
-                   selected_gene = "PLEC")
   
-  plota
+  # Comment this test as the CNV view has to be totally redesigned
+  
+  # cnvfile_path = system.file("extdata","testdata/cnv.tsv", package = "SomaVarDB")
+  # prefix = "test"
+  # db_path = system.file("extdata","testdata", package = "SomaVarDB")
+  # plota <- SomaVarDB::drawCNVplot_seqone(
+  #                  cnvfile_path = cnvfile_path,
+  #                  prefix = prefix, db_path = db_path, 
+  #                  selected_sample = "22A0173",
+  #                  background_samples = "22A1881",
+  #                  selected_gene = "PLEC")
+  # 
+  # plota
 
 })

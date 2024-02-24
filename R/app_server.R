@@ -17,6 +17,8 @@
 #' @importFrom plotly renderPlotly
 #' @importFrom golem get_golem_options
 #' @importFrom shinyBS bsTooltip
+#' @importFrom cachem cache_disk
+#' @importFrom bsplus shiny_iconlink bs_embed_tooltip
 #' @importFrom shiny.router router_server change_page
 app_server <- function(input, output, session) {
 
