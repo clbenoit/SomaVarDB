@@ -142,7 +142,7 @@ home_page <- div(
                   ),
                   footer = tags$footer(class = "main-footer", 
                                        HTML("<div class=\"pull-right hidden-xs\">
-                                             <a href=\"https://clbenoit.github.io/portfolio/projects/germlinevardb\" target=\"_blank\"><b>About the app</b></a>
+                                             <a href=\"https://clbenoit.github.io/portfolio/projects/somavardb\" target=\"_blank\"><b>About the app</b></a>
                                              </div>
                                              Support: <b>benoitclement.data@gmail.com</b>"
                                        )
