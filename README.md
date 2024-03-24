@@ -1,13 +1,13 @@
 
-# Requirements
+# :clipboard: Requirements
 
 R 4.2.0
 
-# Installation
+# :hammer_and_wrench: Installation
 
 `devtools::install_github("clbenoit/SomaVarDB")`
 
-# Configuration
+# :gear: Configuration
 
 Save locally and edit the [config file](inst/golem-config.yml)
 
@@ -15,7 +15,7 @@ Save locally and edit the [config file](inst/golem-config.yml)
   - **[Optional]** **browser_client_url**: Url to your [JBrowseR](https://github.com/GMOD/JBrowseR) server, files should be accessible from the WebBrowser used to access the Shiny app
   - **cache_directory** : directory to store SomaVarDB cache files in. Necessary for good app performances. If NULL, a temporary directory will be used and cache will be lost on computer restart
 
-# Run the application
+# 🚀 Run the application
 
 `SomaVarDB::run_app(prefix = "yourdatabasename", db_path = "path_to_your_database_location", config = "path_to_your_config_file")`
 
@@ -27,19 +27,19 @@ Will launch SomaVarDB on the following SQLite database : /home/my_databases/lung
 
 # Demo App
 
-## Run Demo app
+## 💻 Run Demo app locally
 
 - `SomaVarDB::run_demo_app(browser = TRUE)` Will download genome reference file on first call before to start the app
 
 - `SomaVarDB::run_demo_app()` Skip references download and disable genome browser on demo app
 
-## Live demo App
+## 🌐 Live demo App
 
 <a href="https://omicsverse.fr/app/SomaVarDB" target="_blank">See live demo</a>
 
 ![](inst/app/www/somavardb.gif)
 
-# Manage your genomic variations database
+# :dna: Manage your genomic variations database
 
 The SomaVarDB package comes with a tools suite to manage your database. Here are the more common R functions : 
 
@@ -55,7 +55,7 @@ The SomaVarDB package comes with a tools suite to manage your database. Here are
 
 - `SomaVarDB::QCtodb_seqone(db_path = db_path, prefix = prefix, qcfile_path = system.file("extdata","testdata/QCs.csv", package = "SomaVarDB"))` Will import copy number variations found on the specified [QCs file](inst/extdata/testdata/QCs.tsv) to the selected database. 
 
-# Incoming features
+# 🔜 Incoming features
 
 - Feed database with vcf produced by [sarek nf core pipeline](https://nf-co.re/sarek/3.2.3)
 - Possibility for the user to save filters and parameters presets and choose a default one 
@@ -63,5 +63,5 @@ The SomaVarDB package comes with a tools suite to manage your database. Here are
 - Add in silico panel lists usable as filtering option
 - Possibility for the user to upload a list of preferential transcripts, default use the canonical one in sample variants table -> cleaner view
 
-# Troubleshouting
+# ⚠️ Troubleshouting
 
