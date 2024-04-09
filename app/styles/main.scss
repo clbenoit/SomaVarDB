@@ -1,0 +1,15 @@
+
+.reverseSlider .irs-bar {
+    border-top: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+    background: linear-gradient(to bottom, #DDD -50%, #FFF 150%);
+}
+.reverseSlider .irs-bar-edge {
+    border: 1px solid #ddd;
+    background: linear-gradient(to bottom, #DDD -50%, #FFF 150%);
+    border-right: 0;
+}
+.reverseSlider .irs-line {
+    background: #428bca;
+    border: 1px solid #428bca;
+}
