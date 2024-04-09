@@ -228,7 +228,7 @@ buildDB_sarek <- function(prefix = NULL, vcf_name = NULL, db_path = NULL) {
     }
   }) # end of future promises geno
   
-  promise_all(geno_promise, csq_promise, info_promise) %...>% {
+  promise_all <- promise_all(geno_promise, csq_promise, info_promise) %...>% {
 
     geno.vcf <- environment(geno_promise[["then"]])[["private"]][["value"]]
     info.vcf <- environment(info_promise[["then"]])[["private"]][["value"]]
@@ -320,6 +320,21 @@ buildDB_sarek <- function(prefix = NULL, vcf_name = NULL, db_path = NULL) {
     closeAllConnections()
     message("######\nDone inserting variants\n#####")
     } # end or promise concatenation
+
+    block_until_settled <- function(p) {
+      promise_resolved <- FALSE
+      p$finally(function(value) {
+      promise_resolved <<- TRUE
+    })
+    
+    while(!promise_resolved) {
+      later::run_now(1)
+    }
+   }
+  
+   print(promise_all)
+   block_until_settled(promise_all)
+    
   } else {cat("sample already present in the database, skipping import")}
  gc(verbose = TRUE)
 }
