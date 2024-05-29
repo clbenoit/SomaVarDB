@@ -15,6 +15,8 @@ box::use(
 box::use(
   app/logic/dataManager[DataManager],
   app/view/sidebar,
+  app/view/patient_view,
+  app/view/variant_annoter,
 )
 
 #' @export
@@ -42,6 +44,9 @@ ui <- function(id) {
                 sidebar$ui(ns("sidebar")),
                 collapsed = FALSE),
              dashboardBody(
+               patient_view$ui(ns("patient_view"))#,
+               #variant_annoter$ui(ns("variant_annoter")),
+               
              )
           )#,
           # footer = tags$footer(class = "main-footer",
@@ -70,7 +75,7 @@ server <- function(id) {
     options(future.globals.maxSize = 10000*1024^2)
     
     # set up cache directory ##
-    Sys.setenv(R_CONFIG_ACTIVE = "devel")
+    Sys.setenv(R_CONFIG_ACTIVE = "default")
     config <- get()
     tempdir <- tempdir()
     print(get("cache_directory"))
@@ -100,9 +105,9 @@ server <- function(id) {
       change_page('parameters')
     })
     
-    
     sidebar$server("sidebar", data = DataManager)
-    
+    patient_view$server("patient_view", data = DataManager)
+    variant_annoter$server("variant_annoter", data = DataManager, modal = TRUE)
     
   })
 }

@@ -94,11 +94,11 @@ server <- function(id, con, data, variables) {
                                 value = 1, min = 0, max = 1))
                           )),
                           selectInput(inputId = ns("impact"), width = '100%', label = "Impact",
-                            choices  = c("Low","Moderate","High"),selected = "Low"),
+                            choices  = c("Low","Moderate","High"), selected = "Low"),
                            selectInput(inputId = ns("manifest"), width = '100%', label = "Manifest",
-                             choices  = data$manifests_list ,selected = "None"),
+                             choices  = data$manifests_list , selected = "None"),
                            selectInput(inputId = ns("trlist"), width = '100%', label = "Select a prefered transcripts list",
-                             choices  = data$transcript_lists ,selected = "None")
+                             choices  = data$transcript_lists , selected = "None")
               ),
               tabPanel("Phenotype", br(),
                 "my phenotype selectors"
@@ -122,6 +122,7 @@ server <- function(id, con, data, variables) {
       req(gnomad_value)
       updateSliderInput("gnomadfrequency", value = gnomad_value(), session = session)
       updateNumericInput("gnomadfrequencynum", value = gnomad_value(), session = session)
+      data$filters$gnomadfrequency_value <- gnomad_value()
     })
     
     observeEvent(input$gnomadfrequencynum, {
@@ -140,6 +141,7 @@ server <- function(id, con, data, variables) {
       req(quality_value)
       updateSliderInput("quality", value = quality_value(), session = session)
       updateNumericInput("qualitynum", value = quality_value(), session = session)
+      data$filters$quality_value<- quality_value()
     })
     
     observeEvent(input$qualitynum, {
@@ -158,6 +160,7 @@ server <- function(id, con, data, variables) {
       req(coverage_value)
       updateSliderInput("coverage", value = coverage_value(), session = session)
       updateNumericInput("coveragenum", value = coverage_value(), session = session)
+      data$filters$coverage_value<- coverage_value()
     })
     observeEvent(input$coveragenum, {
       req(input$coveragenum)
@@ -174,6 +177,7 @@ server <- function(id, con, data, variables) {
     observeEvent(allelefrequency_value(), {
       updateSliderInput("allelefrequency", value = allelefrequency_value(), session = session)
       updateNumericInput("allelefrequencynum", value = allelefrequency_value(), session = session)
+      data$filters$allelefrequency_value <- allelefrequency_value()
     })
     observeEvent(input$allelefrequencynum, {
       req(input$allelefrequencynum)
@@ -184,7 +188,12 @@ server <- function(id, con, data, variables) {
       req(input$allelefrequency)
       print("update allelefrequencynum")
       allelefrequency_value(input$allelefrequency)
-    })    
+    })
+    
+    observeEvent(input$impact, {
+      req(input$impact)
+      data$filters$impact <- input$impact
+    })
  
   })
 }

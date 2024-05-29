@@ -20,6 +20,9 @@ DataManager <- R6::R6Class(
     presets =  NULL,
     manifests_list = NULL,
     transcript_lists = NULL,
+    filters = reactiveValues(allelefrequency_value = NULL, gnomadfrequency_value= NULL, 
+                             coverage_value = NULL, impact = NULL),
+    annoter_reactives = reactiveValues(launchmodal = 0, my_variant_id = NULL, reload = 0),
     loadDb = function(con) {
       print("inside load DB")
       self$con <- con
@@ -31,7 +34,7 @@ DataManager <- R6::R6Class(
         # self$tables$samples_db <- dbReadTable(con, "samples")
         # self$tables$db_metadata <- dbReadTable(con,"db_metadata")
         self$samples_db <- dbReadTable(con, "samples")
-        self$db_metadata <- dbReadTable(con,"db_metadata")
+        self$db_metadata <- dbReadTable(con, "db_metadata")
         
         # Different sidebars according to selected tab
         if(DBI::dbExistsTable(conn = con,"manifests_list")){
