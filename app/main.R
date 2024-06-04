@@ -1,8 +1,9 @@
 box::use(
   shiny[bootstrapPage, div, moduleServer, NS, renderUI,
         tags, uiOutput, shinyOptions, 
-        observeEvent, HTML, tagList, 
-        actionButton, icon, span, img, br],
+        observeEvent, HTML, tagList, req,
+        actionButton, icon, span, img, br, 
+        tabsetPanel, tabPanel],
   cachem[cache_disk],
   config[get],
   shiny.router[router_server, change_page, router_ui, route],
@@ -13,9 +14,12 @@ box::use(
 )
 
 box::use(
-  app/logic/dataManager[DataManager],
+  app/logic/appDataManager[appDataManager],
+  app/logic/genomicDataManager[genomicDataManager],
   app/view/sidebar,
   app/view/patient_view,
+  app/view/variant_view,
+  app/view/run_view,
   app/view/variant_annoter,
 )
 
@@ -26,27 +30,33 @@ ui <- function(id) {
     router_ui(
       route("/",
         tagList(
-          dashboardPage(skin = "blue", #"blue-light",
+          dashboardPage(skin = "blue",
             #options = list(sidebarExpandOnHover = TRUE),
             dashboardHeader(
               titleWidth = '25%',
-              #title = span(img(src = 'www/CHUlogo.png', width = 40, height = 39), get_golem_options("app_title")),
               title = span(img(src = 'static/CHUlogo.png', width = 40, height = 39), "My app"),
               tags$li(class = "dropdown", 
                   actionButton(label = NULL, inputId = "goparams",icon = icon("gear"),
-                    style = "position: relative; margin: 10px 10px 10px 10px; display:center-align;"),
+                    class = "actionButtonHeader"),
                   actionButton(label = NULL, inputId = "godbinfo",icon = icon("database"),
-                    style = "position: relative; margin: 10px 10px 10px 10px; display:center-align;"))
+                    class = "actionButtonHeader"))
              ),
              dashboardSidebar(width = '25vw', 
-                #id = "sidebars", minified = FALSE,
                 br(),
                 sidebar$ui(ns("sidebar")),
                 collapsed = FALSE),
              dashboardBody(
-               patient_view$ui(ns("patient_view"))#,
-               #variant_annoter$ui(ns("variant_annoter")),
-               
+               tabsetPanel(id = ns("tabsBody"),
+                           tabPanel("PatientView",
+                              patient_view$ui(ns("patient_view"))
+                            ),
+                           tabPanel("VariantView",
+                              variant_view$ui(ns("variant_view"))
+                           ),
+                           tabPanel("RunView",
+                                    run_view$ui(ns("run_view"))
+                           )
+                )
              )
           )#,
           # footer = tags$footer(class = "main-footer",
@@ -94,20 +104,41 @@ server <- function(id) {
     }
     
     ## load database ##
-    DataManager <- DataManager$new()
     db_name <- file.path(get("db_path"), paste0(get("prefix"), ".db"))
     con <- dbConnect(SQLite(), db_name)
-    DataManager$loadDb(con)
     
-    router_server() # mandatory of shiny.route package use
+    appDataManager <- appDataManager$new()
+    appDataManager$loadAppData(con)
+    observeEvent(appDataManager$annoter_reactives$reload, {
+      req(appDataManager$annoter_reactives$reload)
+      if(appDataManager$annoter_reactives$reload == 0) {
+        print("INITIAL RELOAD :: ")
+      } else {
+        appDataManager$updateDBhash()
+      }
+    })
+
+    genomicDataManager <- genomicDataManager$new()
+    genomicDataManager$loadGenomicData(con)
+    
+    router_server()
     observeEvent(input$goparams, {
       req(input$goparams)
       change_page('parameters')
     })
     
-    sidebar$server("sidebar", data = DataManager)
-    patient_view$server("patient_view", data = DataManager)
-    variant_annoter$server("variant_annoter", data = DataManager, modal = TRUE)
+    sidebar$server("sidebar", appData = appDataManager)
+    patient_view$server("patient_view", appData = appDataManager, genomicData = genomicDataManager, main_session = session)
+    variant_view$server("variant_view", appData = appDataManager, genomicData = genomicDataManager)
+    variant_annoter$server("variant_annoter", appData = appDataManager, modal = TRUE)
+    
+    observeEvent(input$tabsBody, {
+      req(input$tabsBody)
+      print("updating selected tab metadata")
+      print("input$tabsBody")
+      print(input$tabsBody)
+      appDataManager$selectors$tab <- input$tabsBody
+    })
     
   })
 }

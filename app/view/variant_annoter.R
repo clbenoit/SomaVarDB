@@ -8,25 +8,23 @@ box::use(
         updateSelectizeInput, fluidPage, bindCache, reactive, observe, reactiveValues,
         bindEvent, isolate, showModal, removeModal, HTML],
   dplyr[filter, `%>%`, select, case_when, mutate, arrange],
-  DBI[dbGetQuery, dbSendQuery],
+  DBI[dbGetQuery, dbSendQuery, dbReadTable, dbWriteTable],
   shinyWidgets[progressSweetAlert, closeSweetAlert, pickerInput, ask_confirmation, sendSweetAlert],
-  stringr[str_split]
+  stringr[str_split],
+  DT[renderDataTable, datatable]
   
 )
 
 #' @export
-ui <- function(id, modal = FALSE) {
+ui <- function(id) {
   ns <- NS(id)
-    #req(data$annoter_reactives$my_variant_id)
-    if (modal == FALSE){
       tagList(
         uiOutput(ns("ui"))
       )
-    }
 }
 
 #' @export
-server <- function(id, con, data, modal = FALSE) {
+server <- function(id, con, appData, modal = FALSE) {
   moduleServer(id, function(input, output, session) {
     
     ns <- session$ns
@@ -36,17 +34,18 @@ server <- function(id, con, data, modal = FALSE) {
     colors <- paste0(colors,"font-family: Arial;")
     colors <- paste0(colors,"font-weight: bold;")
     output$nocommenttext <- renderText({"No comment for this variant yet"})
-    observeEvent(c(data$annoter_reactives$my_variant_id, reloadinside$value),{
-      req(data$annoter_reactives$my_variant_id)
+    
+    observeEvent(c(appData$annoter_reactives$my_variant_id, reloadinside$value),{
+      req(appData$annoter_reactives$my_variant_id)
       print("rendering variant annoter UI ")
-      VKB <- unique(dbGetQuery(data$con, paste0("SELECT VKB from variant_impact WHERE variant_id = '",data$annoter_reactives$my_variant_id,"'"))$VKB)
-      comments_table <- DBI::dbReadTable(conn = data$con, name="variant_comments") %>% 
-        dplyr::filter(variant_id == data$annoter_reactives$my_variant_id) %>%
+      VKB <- unique(dbGetQuery(appData$con, paste0("SELECT VKB from variant_impact WHERE variant_id = '", appData$annoter_reactives$my_variant_id,"'"))$VKB)
+      comments_table <- dbReadTable(conn = appData$con, name="variant_comments") %>% 
+        filter(variant_id == appData$annoter_reactives$my_variant_id) %>%
         mutate(delete = case_when(user == Sys.getenv("SHINYPROXY_USERNAME") ~ paste0('<button id="delete_com_',
                                                                                      com_id,
                                                                                      '" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;',ns("godeletecom"),'&quot;,  this.id, {priority: &quot;event&quot;})"><i class="fa fa-trash"></i>',
                                                                                      '</button>')))
-      output$comments <- DT::renderDataTable(DT::datatable(comments_table,
+      output$comments <- renderDataTable(datatable(comments_table,
                                                            rownames = FALSE, escape = FALSE,
                                                            options = list(
                                                              columnDefs = list(list(visible=FALSE, targets=c(0))))))
@@ -60,25 +59,25 @@ server <- function(id, con, data, modal = FALSE) {
                              choicesOpt = list(style = colors),
                  ), 
                  actionButton(ns("okVKB"), "Update VKB classification", width = "100%")),
-          column(width = 8,textAreaInput(inputId = ns("annotatecom"),label = "Write a commentary about the variant",placeholder = "my commentary",width  = "100%",
+          column(width = 8, textAreaInput(inputId = ns("annotatecom"),label = "Write a commentary about the variant",placeholder = "my commentary",width  = "100%",
                                          value = "my commentary"),actionButton(ns("okComment"), "Add comment on variant"),
-                 br(),br(),
-                 if(nrow(comments_table) >= 1) {DT::dataTableOutput(ns("comments"))} else {verbatimTextOutput(ns("nocommenttext"))},br()
+                 br(), br(),
+                 if(nrow(comments_table) >= 1) {dataTableOutput(ns("comments"))} else {verbatimTextOutput(ns("nocommenttext"))},br()
           )
         )
       })
     })
     
     observeEvent(input$godeletecom,{
-      req(data$annoter_reactives$my_variant_id)
-      com_id <- paste0(stringr::str_split(input$godeletecom, pattern = "_")[[1]][c(3)],collapse = "_")
-      progressSweetAlert(session = session, id = "Just_to_restore_reactivity_[Tricky]",title = "",display_pct = TRUE, value = 9)
+      req(appData$annoter_reactives$my_variant_id)
+      com_id <- paste0(str_split(input$godeletecom, pattern = "_")[[1]][c(3)], collapse = "_")
+      progressSweetAlert(session = session, id = "Just_to_restore_reactivity_[Tricky]", title = "", display_pct = TRUE, value = 9)
       closeSweetAlert(session = session)
       showModal(modalDialog(size = "l",
                             title = "Are you sure ??", 
                             "Following commentary will be removed from base :",br(),
-                            DT::renderDataTable(DT::datatable(dbGetQuery(data$con, paste0("SELECT variant_id, user, date, comment FROM variant_comments WHERE com_id = '",com_id,"';")) %>% 
-                                                                filter(variant_id == data$annoter_reactives$my_variant_id),rownames = FALSE)),
+                            renderDataTable(datatable(dbGetQuery(appData$con, paste0("SELECT variant_id, user, date, comment FROM variant_comments WHERE com_id = '",com_id,"';")) %>% 
+                                                                filter(variant_id == appData$annoter_reactives$my_variant_id),rownames = FALSE)),
                             footer = tagList(
                               modalButton("No"),
                               actionButton(ns("deletecomconf"), "Yes")
@@ -88,31 +87,32 @@ server <- function(id, con, data, modal = FALSE) {
       req(input$godeletecom)
       req(input$deletecomconf)
       removeModal()
-      com_id <- paste0(stringr::str_split(input$godeletecom, pattern = "_")[[1]][c(3)],collapse = "_")
+      com_id <- paste0(str_split(input$godeletecom, pattern = "_")[[1]][c(3)],collapse = "_")
       print(com_id)
-      dbSendQuery(data$con, paste0("DELETE FROM variant_comments WHERE com_id = '",com_id,"';"))
+      dbSendQuery(appData$con, paste0("DELETE FROM variant_comments WHERE com_id = '", com_id, "';"))
       #dbSendQuery(con, paste0("DELETE FROM variant_comments WHERE com_id = '",com_id,"' AND variant_id = '",data$annoter_reactives$my_variant_id,"';"))
       reloadinside$value <- reloadinside$value +1
       sendSweetAlert(session = session,title = "Database updated with sucess !",text = "comment correctly removed",type = "success")
     })    
   
     if (modal == TRUE){
-      observeEvent(data$annoter_reactives$launchmodal, {
-        req(data$annoter_reactives$my_variant_id)
-        print(data$annoter_reactives$my_variant_id)
-        VKB <- unique(dbGetQuery(data$con, paste0("SELECT VKB from variant_impact WHERE variant_id = '",data$annoter_reactives$my_variant_id,"'"))$VKB)
-        comments_table <- DBI::dbReadTable(conn = data$con, name="variant_comments") %>% 
-          dplyr::filter(variant_id == data$annoter_reactives$my_variant_id) %>%
+      observeEvent(appData$annoter_reactives$launchmodal, {
+        req(appData$annoter_reactives$my_variant_id)
+        print(appData$annoter_reactives$my_variant_id)
+        VKB <- unique(dbGetQuery(appData$con, paste0("SELECT VKB from variant_impact WHERE variant_id = '",appData$annoter_reactives$my_variant_id,"'"))$VKB)
+        comments_table <- dbReadTable(conn = appData$con, name="variant_comments") %>% 
+          filter(variant_id == appData$annoter_reactives$my_variant_id) %>%
           mutate(delete = case_when(user == Sys.getenv("SHINYPROXY_USERNAME") ~ paste0('<button id="delete_com_',
                                                                                        com_id,
                                                                                        '" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;',ns("godeletecom"),'&quot;,  this.id, {priority: &quot;event&quot;})"><i class="fa fa-trash"></i>',
                                                                                        '</button>')))
-        output$comments <- DT::renderDataTable(DT::datatable(comments_table,
-                                                             rownames = FALSE, escape = FALSE,
-                                                             options = list(
-                                                               columnDefs = list(list(visible=FALSE, targets=c(0))))))
+        output$comments <- renderDataTable(datatable(comments_table,
+                                                     rownames = FALSE, escape = FALSE,
+                                                     options = list(
+                                                     columnDefs = list(list(visible=FALSE, targets=c(0))))))
+        
         showModal(session = session, modalDialog(size = 'l',
-                                                title = paste0("Annotate ", data$annoter_reactives$my_variant_id ," in your database"),
+                                                title = paste0("Annotate ", appData$annoter_reactives$my_variant_id ," in your database"),
                                                 uiOutput(ns("ui"))))
       })
     }
@@ -127,6 +127,7 @@ server <- function(id, con, data, modal = FALSE) {
         btn_labels = c("No", "Yes"),
         btn_colors = c("#FE642E", "#04B404"))
     })
+    
     observeEvent(input$okComment,{
       if (modal == TRUE){removeModal()}
       print(input$okComment)
@@ -143,10 +144,10 @@ server <- function(id, con, data, modal = FALSE) {
       req(input$annotationconfVKB)
       if(input$annotationconfVKB ==  TRUE){
         # Check that data object exists and is data frame.
-        apn_sql <- paste0("UPDATE variant_impact SET VKB = '", input$annotate,"' WHERE variant_id = '", data$annoter_reactives$my_variant_id, "';")
-        dbSendQuery(data$con, apn_sql)
-        sendSweetAlert(session = session,title = "Database updated with sucess !",text = paste0(data$annoter_reactives$my_variant_id , " annotation correctly overwritten"),type = "success")
-        data$annoter_reactives$reload <- data$annoter_reactives$reload + 1
+        apn_sql <- paste0("UPDATE variant_impact SET VKB = '", input$annotate,"' WHERE variant_id = '", appData$annoter_reactives$my_variant_id, "';")
+        dbSendQuery(appData$con, apn_sql)
+        sendSweetAlert(session = session,title = "Database updated with sucess !",text = paste0(appData$annoter_reactives$my_variant_id , " annotation correctly overwritten"),type = "success")
+        appData$annoter_reactives$reload <- appData$annoter_reactives$reload + 1
         reloadinside$value <- reloadinside$value + 1 
       } else {
         sendSweetAlert(session = session, cancelOnDismiss = TRUE, title = "Variant annotation has been canceled", type = "info")
@@ -158,14 +159,14 @@ server <- function(id, con, data, modal = FALSE) {
       req(input$annotationconfComment)
       if(input$annotationconfComment ==  TRUE){
         # Check that data object exists and is data frame.
-        new_comment <- data.frame(com_id = dbGetQuery(data$con, "SELECT COUNT(*) FROM variant_comments;")[1,1] + 1 ,
-                                  variant_id = data$annoter_reactives$my_variant_id,
+        new_comment <- data.frame(com_id = dbGetQuery(appData$con, "SELECT COUNT(*) FROM variant_comments;")[1,1] + 1 ,
+                                  variant_id = appData$annoter_reactives$my_variant_id,
                                   comment = HTML(gsub("\n","<br/>",input$annotatecom)),
                                   user = Sys.getenv("SHINYPROXY_USERNAME"), 
                                   date = format(Sys.Date()," %d/%m/%Y"))
-        DBI::dbWriteTable(conn = data$con, name="variant_comments", new_comment, append = TRUE)
-        sendSweetAlert(session = session,title = "Database updated with sucess !", text = paste0(data$annoter_reactives$my_variant_id , " annotation correctly overwritten"),type = "success")
-        #data$annoter_reactives$reload <- data$annoter_reactives$reload + 1
+        dbWriteTable(conn = appData$con, name="variant_comments", new_comment, append = TRUE)
+        sendSweetAlert(session = session,title = "Database updated with sucess !", text = paste0(appData$annoter_reactives$my_variant_id , " annotation correctly overwritten"),type = "success")
+        #appData$annoter_reactives$reload <- appData$annoter_reactives$reload + 1
         reloadinside$value <- reloadinside$value + 1 
       } else {
         sendSweetAlert(session = session,cancelOnDismiss = TRUE, title = "Variant annotation has been canceled",type = "info")
