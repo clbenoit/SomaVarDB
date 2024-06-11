@@ -3,15 +3,16 @@
 box::use(
   shiny[h3, moduleServer, tagList, conditionalPanel, tabsetPanel, tabPanel, 
         span, br, column, fluidRow, h4, uiOutput, renderUI, NS, tags, icon,
-        sliderInput, req, numericInput, selectInput, selectizeInput, observeEvent, 
+        sliderInput, req, numericInput, selectInput, selectizeInput, observeEvent, updateTabsetPanel, 
         updateSelectizeInput, fluidPage, bindCache, reactive, observe, reactiveValues, bindEvent, isolate],
   dplyr[filter, `%>%`, select, case_when, mutate, arrange, inner_join],
   DBI[dbGetQuery, dbSendQuery],
   shinyWidgets[progressSweetAlert, closeSweetAlert],
   stringr[str_split],
-  DT[dataTableOutput],
+  DT[dataTableOutput, datatable, renderDataTable, formatStyle, styleEqual],
   shinydashboardPlus[box, boxDropdown, boxDropdownItem], 
-  shinydashboard[infoBox]
+  shinydashboard[infoBox], 
+  htmltools[tags]
   
 )
 
@@ -36,7 +37,7 @@ ui <- function(id) {
 }
 
 #' @export
-server <- function(id, con, appData, genomicData) {
+server <- function(id, con, appData, genomicData, main_session) {
   moduleServer(id, function(input, output, session) {
     
     ns <- session$ns
@@ -114,40 +115,41 @@ server <- function(id, con, appData, genomicData) {
       bindEvent(c(input$selectedvariant, appData$db_metadata$hash))
     
     observe({
-      output$current_var_table  <- DT::renderDataTable(DT::datatable(current_var_table(),
+      output$current_var_table  <- renderDataTable(datatable(current_var_table(),
                                                                      extensions = c("FixedColumns", "FixedHeader"),
                                                                      rownames = FALSE, escape = FALSE,
                                                                      options = list(scrollX = TRUE,
                                                                                     #columnDefs = list(list(visible=FALSE, targets=c(0,1))),
                                                                                     columnDefs = list(list(visible=FALSE, targets=c(0))),
-                                                                                    fixedColumns = list(leftColumns = 2),fixedHeader = TRUE,
+                                                                                    fixedColumns = list(leftColumns = 2), fixedHeader = TRUE,
                                                                                     autoWidth = FALSE,
                                                                                     dom = 't')
-      ) %>% DT::formatStyle(
+      ) %>% formatStyle(
         "VKB",
-        color = DT::styleEqual(c("PossibleArtifact", "Benign", "LikelyBenign", "UncertainSignificance", "LikelyPathogenic", "Pathogenic"),
+        color = styleEqual(c("PossibleArtifact", "Benign", "LikelyBenign", "UncertainSignificance", "LikelyPathogenic", "Pathogenic"),
                                c('gray','green','blue','black','orange','red')))
       )
     })
     
-    observeEvent(input$gosample,{
+    observeEvent(input$gosample, {
       req(input$gosample)
-      updateSelectizeInput(session, inputId = "selectedsample", selected = gsub("button_","", input$gosample)) 
-      updateTabsetPanel(session, "tabsBody", "PatientView") ### Ajax error, maybe wait for the patient table to be completely computed before to switch to patient tab
+      updateTabsetPanel(session = main_session, "tabsBody", "PatientView") ### Ajax error, maybe wait for the patient table to be completely computed before to switch to patient tab
+      appData$selectors$sample <- gsub("button_", "", input$gosample)
     })
     
     variant_view_samples_list <- reactive({
       req(input$selectedvariant)
       samples_list <- dbGetQuery(con = appData$con, paste0("SELECT * from variant_geno WHERE variant_id = '", input$selectedvariant,"' AND  gt_raw NOT IN ('0/0','./0','0/.')")) %>%
-        mutate(samples = paste0('<button id="button_',sample,'" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;gosample&quot;,  this.id, {priority: &quot;event&quot;})">',sample,'</button>')) %>%
+        mutate(samples = paste0('<button id="button_',sample,'" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;', ns('gosample'), '&quot;,  this.id, {priority: &quot;event&quot;})">',sample,'</button>')) %>%
         select(c("samples","gt_raw"))
       return(samples_list)
     }) %>% bindCache(list(input$selectedvariant, appData$db_metadata$hash)) %>%
       bindEvent(c(input$selectedvariant))
     
-    output$samples_list_table <- DT::renderDataTable(
-      DT::datatable(variant_view_samples_list(),
-                    caption = htmltools::tags$caption("The variant is present in the following samples",style = "caption-side: top; text-align: center;color:black"),
+    output$samples_list_table <- renderDataTable(
+      datatable(variant_view_samples_list(),
+                    caption = tags$caption("The variant is present in the following samples", 
+                                           style = "caption-side: top; text-align: center;color:black"),
                     extensions = c("FixedColumns","FixedHeader"),
                     options = list(scrollX = FALSE),
                     rownames = FALSE,escape = FALSE )) 

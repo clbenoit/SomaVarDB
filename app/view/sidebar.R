@@ -4,190 +4,120 @@ box::use(
   reactable,
   shiny[h3, moduleServer, tagList, conditionalPanel, tabsetPanel, tabPanel, 
         span, br, column, fluidRow, h4, uiOutput, renderUI, NS, tags, sliderInput, req, numericInput, selectInput, reactiveVal,
-        observeEvent, updateSliderInput, updateNumericInput],
+        observeEvent, updateSliderInput, updateNumericInput, outputOptions, reactive, 
+        renderText, textOutput],
   bsplus[bs_embed_tooltip, shiny_iconlink ],
   dplyr[`%>%`, filter]
+)
+
+box::use(
+  app/view/react[sliderNumeric],
 )
 
 #' @export
 ui <- function(id) {
   ns <- NS(id)
   tagList(
-    uiOutput(ns("sidebarUI"))
+    uiOutput(ns("sidebarUI"))#,
   )
 }
 
 #' @export
-server <- function(id, con, appData, variables) {
+server <- function(id, con, appData) {
   moduleServer(id, function(input, output, session) {
     
     ns <- session$ns
-    #req(appData$db_metadata)
 
+    output$tabValue <- reactive({
+       req(appData$selectors$tab)
+       return(appData$selectors$tab)
+    })
+    outputOptions(output, "tabValue", suspendWhenHidden = FALSE)
+    
     output$sidebarUI <- renderUI({
       tagList(
-        #conditionalPanel(condition = 'input.tabsBody=="PatientView"',
+        conditionalPanel(condition = sprintf("output['%s'] == 'PatientView'", ns("tabValue")),
           tabsetPanel(id = ns("tabsPatient"),
             tabPanel("Sample",
               br(),
               span(h4("Coverage",
                 shiny_iconlink(name = "info-circle") %>%
-                  bs_embed_tooltip("Some information about this filter"), style = "text-align: center;")),
-              fluidRow(column(width = 12 ,
-                column(width = 8 ,
-                  tags$div(sliderInput(inputId = ns("coverage"),
-                                       label = "Coverage", 
-                            width = '100%', step = 10,
-                            value = appData$db_metadata$dp_min,
-                            min = appData$db_metadata$dp_min, max = appData$db_metadata$dp_max), 
-                    class = "reverseSlider")),
-                      column(width = 4 , br(),
-                        numericInput(inputId = ns("coveragenum"), label = NULL , 
-                          width = '100%', step = 10,
-                          value = appData$db_metadata$af_min))
-                )), 
-                br(),         
+                  bs_embed_tooltip("Some information about this filter"), style = "text-align: center;")),br(),
+                sliderNumeric(inputId = ns("coverage"),
+                  initialMin = appData$db_metadata$dp_min,
+                  initialValue = appData$db_metadata$dp_min,
+                  initialMax = appData$db_metadata$dp_max,
+                  initialStep = 1,
+                  fillDirection = 'right'),
                 span(h4("Quality",
                   shiny_iconlink(name = "info-circle") %>%
-                    bs_embed_tooltip("Some information about this filter"), style = "text-align: center;")),
-                  fluidRow(column(width = 12 ,
-                    column(width = 8 , 
-                      tags$div(
-                        sliderInput(inputId = ns("quality"), label = "Quality", width = '100%',
-                          value = appData$db_metadata$qual_min,
-                          min = appData$db_metadata$qual_min, max = appData$db_metadata$qual_max),
-                        class = "reverseSlider")
-                     ),
-                    column(width = 4 , br(),
-                       numericInput(inputId = ns("qualitynum"), label = NULL , width = '100%', step = 1,
-                        value = appData$db_metadata$qual_min))
-                    )),                                                        
-                    span(h4("Allele Frequency",
+                    bs_embed_tooltip("Some information about this filter"), style = "text-align: center;")),br(),
+                  sliderNumeric(inputId = ns("quality"),
+                    initialMin = appData$db_metadata$qual_min,
+                    initialMax = appData$db_metadata$qual_max,
+                    initialValue = appData$db_metadata$qual_min,
+                    initialStep = 1,
+                    fillDirection = 'right'),
+                  span(h4("Allele Frequency",
                       shiny_iconlink(name = "info-circle") %>%
-                        bs_embed_tooltip("Some information about this filter"), style = "text-align: center;")),
-                    fluidRow(column(width = 12 , 
-                              column(width = 8 ,
-                                tags$div(
-                                  sliderInput(inputId = ns("allelefrequency"),
-                                    label = NULL, step = 0.01 ,
-                                    width = '100%', value = appData$db_metadata$af_min, 
-                                    min = appData$db_metadata$af_min, max = appData$db_metadata$af_max),
-                                  class = "reverseSlider")),
-                               column(width = 4 , br(),
-                                  numericInput(inputId = ns("allelefrequencynum"), label = NULL ,
-                                    width = '100%',step = 0.01 ,
-                                    value = appData$db_metadata$af_min))
-                              ))
-                            ),
+                        bs_embed_tooltip("Some information about this filter"), style = "text-align: center;")),br(),
+                      sliderNumeric(inputId = ns("allelefrequency"),
+                        initialMin = appData$db_metadata$af_min,
+                        initialMax = appData$db_metadata$af_max,
+                        initialValue = appData$db_metadata$af_max,
+                        initialStep = 0.01,
+                        fillDirection = 'left'),
+            ),
             tabPanel("Annotation", br(),
               span(h4("gnomAD Frequency",
                 shiny_iconlink(name = "info-circle") %>%
-                  bs_embed_tooltip("Some information about this filter"), style = "text-align: center;")),
-              fluidRow(column(width = 12 ,
-                          column(width = 8 ,
-                            sliderInput(inputId = ns("gnomadfrequency"), step = 0.01,
-                                label = NULL, width = '100%', 
-                                value = 1, min = 0 , max = 1)),
-                           column(width = 4 , br(),
-                              numericInput(inputId = ns("gnomadfrequencynum"), label = NULL  ,
-                                width = '100%',  step = 0.01,
-                                value = 1, min = 0, max = 1))
-                          )),
-                          selectInput(inputId = ns("impact"), width = '100%', label = "Impact",
-                            choices  = c("Low","Moderate","High"), selected = "Low"),
-                           selectInput(inputId = ns("manifest"), width = '100%', label = "Manifest",
-                             choices  = appData$manifests_list , selected = "None"),
-                           selectInput(inputId = ns("trlist"), width = '100%', label = "Select a prefered transcripts list",
-                             choices  = appData$transcript_lists , selected = "None")
+                  bs_embed_tooltip("Some information about this filter"), style = "text-align: center;")),br(),
+              sliderNumeric(inputId = ns("gnomadfrequency"),
+                            initialMin = 0,
+                            initialMax = 1,
+                            initialStep = 0.001,
+                            initialValue = 1,
+                            fillDirection = 'left'),
+              selectInput(inputId = ns("impact"), width = '100%', label = "Impact",
+                choices  = c("Low","Moderate","High"), selected = "Low"),
+              selectInput(inputId = ns("manifest"), width = '100%', label = "Manifest",
+                choices  = appData$user_parameters$manifests_list , selected = "None"),
+              selectInput(inputId = ns("trlist"), width = '100%', label = "Select a prefered transcripts list",
+                choices  = appData$user_parameters$transcript_lists , selected = "None")
               ),
               tabPanel("Phenotype", br(),
                 "my phenotype selectors"
               ),
               tabPanel("Preset", br(),
                 selectInput(inputId = ns("selectedpreset"), width = '100%', label = "Select a filters preset",
-                   choices  = appData$presets ,selected = "None")
+                   choices  = appData$user_parameters$presets ,selected = "None")
               )
             )
-          #),
-          ,
-          #conditionalPanel(condition = 'input.tabsBody=="RunView"',
+          ),
+          conditionalPanel(condition = sprintf("output['%s'] == 'RunView'", ns("tabValue")),
             selectInput(inputId = ns("runviewfilter"), width = '100%', label = "MyRunViewParameter",
               choices  = c("Low","Moderate","High"),selected = "Low"))      
-      #)
+      )
     })
     
-    ## Link sliders and numeric inputs ##
-    gnomad_value <- reactiveVal(1)
-    observeEvent(gnomad_value(), {
-      req(gnomad_value)
-      updateSliderInput("gnomadfrequency", value = gnomad_value(), session = session)
-      updateNumericInput("gnomadfrequencynum", value = gnomad_value(), session = session)
-      appData$filters$gnomadfrequency_value <- gnomad_value()
-    })
-    
-    observeEvent(input$gnomadfrequencynum, {
-      req(input$gnomadfrequencynum)
-      print("update gnomadfrequencynum")
-      gnomad_value(input$gnomadfrequencynum)
-    })
     observeEvent(input$gnomadfrequency, {
       req(input$gnomadfrequency)
-      print("update gnomadfrequency")
-      gnomad_value(input$gnomadfrequency)
+      appData$filters$gnomadfrequency_value <- input$gnomadfrequency
     })
     
-    quality_value <- reactiveVal(appData$db_metadata$qual_min)
-    observeEvent(quality_value(), {
-      req(quality_value)
-      updateSliderInput("quality", value = quality_value(), session = session)
-      updateNumericInput("qualitynum", value = quality_value(), session = session)
-      appData$filters$quality_value<- quality_value()
-    })
-    
-    observeEvent(input$qualitynum, {
-      req(input$qualitynum)
-      print("update qualitynum")
-      quality_value(input$qualitynum)
-    })
     observeEvent(input$quality, {
       req(input$quality)
-      print("update quality")
-      quality_value(input$quality)
+      appData$filters$quality_value <- input$quality
     })
     
-    coverage_value <- reactiveVal(appData$db_metadata$dp_min)
-    observeEvent(coverage_value(), {
-      req(coverage_value)
-      updateSliderInput("coverage", value = coverage_value(), session = session)
-      updateNumericInput("coveragenum", value = coverage_value(), session = session)
-      appData$filters$coverage_value<- coverage_value()
-    })
-    observeEvent(input$coveragenum, {
-      req(input$coveragenum)
-      print("update coverage")
-      coverage_value(input$coveragenum)
-    })
     observeEvent(input$coverage, {
       req(input$coverage)
-      print("update coveragenum")
-      coverage_value(input$coverage)
+      appData$filters$coverage_value <- input$coverage
     })
     
-    allelefrequency_value <- reactiveVal(appData$db_metadata$af_min)
-    observeEvent(allelefrequency_value(), {
-      updateSliderInput("allelefrequency", value = allelefrequency_value(), session = session)
-      updateNumericInput("allelefrequencynum", value = allelefrequency_value(), session = session)
-      appData$filters$allelefrequency_value <- allelefrequency_value()
-    })
-    observeEvent(input$allelefrequencynum, {
-      req(input$allelefrequencynum)
-      print("update allelefrequency")
-      allelefrequency_value(input$allelefrequencynum)
-    })
     observeEvent(input$allelefrequency, {
       req(input$allelefrequency)
-      print("update allelefrequencynum")
-      allelefrequency_value(input$allelefrequency)
+      appData$filters$allelefrequency_value <- input$allelefrequency
     })
     
     observeEvent(input$impact, {

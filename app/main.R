@@ -9,8 +9,7 @@ box::use(
   shiny.router[router_server, change_page, router_ui, route],
   DBI[dbConnect],
   RSQLite[SQLite],
-  shinydashboard[dashboardPage, dashboardHeader, dashboardSidebar, dashboardBody]
-  
+  shinydashboard[dashboardPage, dashboardHeader, dashboardSidebar, dashboardBody], 
 )
 
 box::use(
@@ -21,7 +20,10 @@ box::use(
   app/view/variant_view,
   app/view/run_view,
   app/view/variant_annoter,
+  app/view/presets_manager,
 )
+
+
 
 #' @export
 ui <- function(id) {
@@ -31,14 +33,14 @@ ui <- function(id) {
       route("/",
         tagList(
           dashboardPage(skin = "blue",
-            #options = list(sidebarExpandOnHover = TRUE),
+        #options = list(sidebarExpandOnHover = TRUE),
             dashboardHeader(
               titleWidth = '25%',
               title = span(img(src = 'static/CHUlogo.png', width = 40, height = 39), "My app"),
               tags$li(class = "dropdown", 
-                  actionButton(label = NULL, inputId = "goparams",icon = icon("gear"),
+                  actionButton(label = NULL, inputId = ns("goparams"), icon = icon("gear"),
                     class = "actionButtonHeader"),
-                  actionButton(label = NULL, inputId = "godbinfo",icon = icon("database"),
+                  actionButton(label = NULL, inputId = ns("godbinfo"), icon = icon("database"),
                     class = "actionButtonHeader"))
              ),
              dashboardSidebar(width = '25vw', 
@@ -66,20 +68,25 @@ ui <- function(id) {
           #   Support: <b>benoitclement.data@gmail.com</b>"
           #   )
           # )
-      ),
-      route("parameters",
+      )),
+      route("presets_manager_page",
             tagList(
-              HTML("parameters page content")
+              presets_manager$ui(ns("presets_manager"))
             )
-        )
       )
     )
   )
 }
 
+box::use(
+  app/view/react[sliderNumeric],
+)
+
 #' @export
 server <- function(id) {
   moduleServer(id, function(input, output, session) {
+    
+    router_server("/")
     
     ## shiny options ##
     options(future.globals.maxSize = 10000*1024^2)
@@ -121,24 +128,28 @@ server <- function(id) {
     genomicDataManager <- genomicDataManager$new()
     genomicDataManager$loadGenomicData(con)
     
-    router_server()
     observeEvent(input$goparams, {
       req(input$goparams)
-      change_page('parameters')
+      print("go parameters view")
+      if(is.null( appDataManager$user_parameters$init_presets_manager)){
+        appDataManager$user_parameters$init_presets_manager <- 0
+      } else {
+        appDataManager$user_parameters$init_presets_manager <- appDataManager$user_parameters$init_presets_manager + 1
+      }
+      change_page('presets_manager_page')
     })
     
     sidebar$server("sidebar", appData = appDataManager)
     patient_view$server("patient_view", appData = appDataManager, genomicData = genomicDataManager, main_session = session)
-    variant_view$server("variant_view", appData = appDataManager, genomicData = genomicDataManager)
+    variant_view$server("variant_view", appData = appDataManager, genomicData = genomicDataManager, main_session = session)
     variant_annoter$server("variant_annoter", appData = appDataManager, modal = TRUE)
     
     observeEvent(input$tabsBody, {
       req(input$tabsBody)
-      print("updating selected tab metadata")
-      print("input$tabsBody")
-      print(input$tabsBody)
       appDataManager$selectors$tab <- input$tabsBody
     })
+    
+    presets_manager$server("presets_manager", appData = appDataManager)
     
   })
 }

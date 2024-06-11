@@ -55,3 +55,7 @@ app/static/js/app.min.js
 app/static/css/app.min.css
 
 app/data/testdata/test.db
+
+
+app/static/js/app.min.js*
+app/st*

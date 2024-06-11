@@ -15,12 +15,15 @@ appDataManager <- R6::R6Class(
   public = list(
     con = NULL,
     selectors = reactiveValues(tab = "VariantView", variant = NULL),
-    db_metadata = NULL, 
-    presets =  NULL,
-    manifests_list = NULL,
-    transcript_lists = NULL,
+    db_metadata = NULL,
+    user_parameters = reactiveValues(presets = NULL, manifests_list = NULL, transcript_lists = NULL, init_presets_manager =  NULL), 
+    # presets =  NULL,
+    # manifests_list = NULL,
+    # transcript_lists = NULL,
     filters = reactiveValues(allelefrequency_value = NULL, gnomadfrequency_value= NULL, 
-                             coverage_value = NULL, impact = NULL),
+                             quality_value = NULL, coverage_value = NULL,
+                             impact = NULL, trlist = NULL,
+                             manifest = NULL),
     annoter_reactives = reactiveValues(launchmodal = 0, my_variant_id = NULL, reload = 0),
     globalRvalues = NULL,
     loadAppData = function(con) {
@@ -35,12 +38,12 @@ appDataManager <- R6::R6Class(
         # Different sidebars according to selected tab
         if(DBI::dbExistsTable(conn = con,"manifests_list")){
           manifests_list <- DBI::dbReadTable(conn = con, name = "manifests_list") %>% filter(user_id == Sys.getenv("SHINYPROXY_USERNAME"))
-          self$manifests_list <- gsub(paste0("_", Sys.getenv("SHINYPROXY_USERNAME")), "", manifests_list$manifests)
+          self$user_parameters$manifests_list <- gsub(paste0("_", Sys.getenv("SHINYPROXY_USERNAME")), "", manifests_list$manifests)
         }
         
         if(DBI::dbExistsTable(conn = con,"presets")){
           presets <- DBI::dbReadTable(con,"presets") %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
-          self$presets <- c(presets$name,"None")
+          self$user_parameters$presets <- c(presets$name,"None")
         }
         
         transcript_lists <- DBI::dbGetQuery(conn = con, 
@@ -48,7 +51,7 @@ appDataManager <- R6::R6Class(
                                                    Sys.getenv("SHINYPROXY_USERNAME"), "_transcriptlist",
                                                    "%';"))
         
-        self$transcript_lists <- gsub(paste0("_",Sys.getenv("SHINYPROXY_USERNAME")),
+        self$user_parameters$transcript_lists <- gsub(paste0("_",Sys.getenv("SHINYPROXY_USERNAME")),
                                       "", gsub("_transcriptlist","",transcript_lists$name))
 
         if (!(dbExistsTable(con,"presets"))) {

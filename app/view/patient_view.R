@@ -5,12 +5,12 @@ box::use(
         span, br, column, fluidRow, h4, uiOutput, renderUI, NS, tags, updateTabsetPanel, 
         sliderInput, req, numericInput, selectInput, selectizeInput, observeEvent, 
         updateSelectizeInput, fluidPage, bindCache, reactive, observe, reactiveValues, bindEvent, isolate],
-  dplyr[filter, `%>%`, select, case_when, mutate, arrange],
+  dplyr[filter, `%>%`, select, case_when, mutate, arrange, inner_join],
   DBI[dbGetQuery, dbSendQuery],
   shinyWidgets[progressSweetAlert, closeSweetAlert],
   stringr[str_split, str_extract], 
   shinydashboardPlus[box],
-  DT[dataTableOutput, datatable]
+  DT[dataTableOutput, datatable, renderDataTable, formatStyle, styleEqual]
   
 )
 
@@ -55,10 +55,17 @@ server <- function(id, con, appData, genomicData, main_session) {
     ns <- session$ns
     req(appData$db_metadata)
     
+    observeEvent(appData$selectors$sample, {
+      req(appData$selectors$sample)
+      updateSelectizeInput(session, inputId = "selectedsample", selected = appData$selectors$sample,
+                           choices = genomicData$samples_db$sample, server = TRUE)
+    })
+    
     updateSelectizeInput(session = session, inputId = "selectedsample", choices = genomicData$samples_db$sample)
 
     current_sample_variants_genos <- reactive({
       req(input$selectedsample) ; req(appData$filters$coverage_value); req(appData$filters$quality_value); req(appData$filters$allelefrequency_value)
+      print(input$selectedsample) ; print(appData$filters$coverage_value); print(appData$filters$quality_value); print(appData$filters$allelefrequency_value)
       print("getting current_sample_variants_genos")
       return(dbGetQuery(appData$con,
                         paste0("SELECT * from variant_geno WHERE sample = '", input$selectedsample, 
@@ -158,10 +165,11 @@ server <- function(id, con, appData, genomicData, main_session) {
           progressSweetAlert(session = session, id = "renderingvarianttable",title = "Rendering variant table",display_pct = TRUE, value = 75)
           `VKB2_freq(%)` <- colnames(current_sample_variants_frequencies())[grepl("ALL_DB", colnames(current_sample_variants_frequencies()))]
           
-          current_sample_variants_table <- dplyr::inner_join(current_sample_variants_impact(),isolate({current_sample_variants_infos()}),by = "variant_id") %>%
-            dplyr::inner_join(current_sample_variants_genos(),by = "variant_id") %>%
-            dplyr::inner_join(current_sample_variants_MD(),by = "variant_id") %>%
-            dplyr::inner_join(current_sample_variants_frequencies(),by = "variant_id") %>%
+          current_sample_variants_table <- inner_join(current_sample_variants_impact(), isolate({current_sample_variants_infos()}),
+                                                      by = "variant_id") %>%
+            inner_join(current_sample_variants_genos(),by = "variant_id") %>%
+            inner_join(current_sample_variants_MD(),by = "variant_id") %>%
+            inner_join(current_sample_variants_frequencies(),by = "variant_id") %>%
             select(c("symbol","VKB",
                      "variant_id","hgvsp",
                      `VKB2_freq(%)`,
@@ -194,9 +202,9 @@ server <- function(id, con, appData, genomicData, main_session) {
               row <- row[1,]
             } else {
               row <- subset[1,]
-              row$consequence <- paste(unique(unlist(str_split(subset$consequence,pattern  = "&"))),collapse = " ")
-              row$feature <- paste(subset$feature,collapse = " ")
-              row$biotype <- paste(unique(subset$biotype),collapse = " ")
+              row$consequence <- paste(unique(unlist(str_split(subset$consequence,pattern  = "&"))), collapse = " ")
+              row$feature <- paste(subset$feature, collapse = " ")
+              row$biotype <- paste(unique(subset$biotype), collapse = " ")
             }
             collapsed <- rbind(collapsed,row)
             #collapsed <- data.table::rbindlist(list(collapsed,row)) # faster check if everything is good in table
@@ -244,10 +252,12 @@ server <- function(id, con, appData, genomicData, main_session) {
                   current_sample_variants_MD()))    
     
     #observeEvent(c(current_sample_variants_table(), input$tabsBody),{
-    observeEvent(current_sample_variants_table(), {
+    #observeEvent(current_sample_variants_table(), {
         
-      output$current_sample_variants_table <- DT::renderDataTable({
+      output$current_sample_variants_table <- renderDataTable({
         print("Rendering current sample variants table")
+        print("lala")
+        #print(utils::head(current_sample_variants_table()))
         req(current_sample_variants_table())
         if(nrow(current_sample_variants_genos()) >=1 && nrow(current_sample_variants_impact()) >=1){
           datatable(current_sample_variants_table(),
@@ -261,12 +271,13 @@ server <- function(id, con, appData, genomicData, main_session) {
                                        buttons = c('colvis','copy','excel')),
                         rownames = FALSE,
                         escape = FALSE
-          )  %>% DT::formatStyle(
+          )  %>% formatStyle(
             'VKB2', "VKB",
-            backgroundColor = DT::styleEqual(c("PossibleArtifact", "Benign", "LikelyBenign", "UncertainSignificance", "LikelyPathogenic", "Pathogenic"),
+            backgroundColor = styleEqual(c("PossibleArtifact", "Benign", "LikelyBenign", "UncertainSignificance", "LikelyPathogenic", "Pathogenic"),
                                              c('gray','green','blue','black','orange','red')))
-        } else {DT::datatable(data.frame("No results" = "0 variants passing the filters"), rownames = FALSE)}
-      }) })
+        } else {datatable(data.frame("No results" = "0 variants passing the filters"), rownames = FALSE)}
+      }) %>% bindEvent(current_sample_variants_table())
+      #})
     
     observeEvent(input$goannotateVKB, {
       print("goannotateVKB")
