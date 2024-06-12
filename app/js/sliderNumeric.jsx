@@ -1,10 +1,11 @@
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 
-const SliderNumericInput = ({ inputId, initialMin, initialMax, initialStep, initialValue,  fillDirection = 'left' }) => {
+const SliderNumericInput = ({ inputId, initialMin, initialMax, initialStep, initialValue, fillDirection = 'left' }) => {
   const [value, setValue] = useState(initialValue);
   const [min, setMin] = useState(initialMin);
   const [max, setMax] = useState(initialMax);
   const [step, setStep] = useState(initialStep);
+  const timeoutRef = useRef(null); // Use useRef to keep track of the timeout ID
 
   useEffect(() => {
     window.Shiny.setInputValue(`${inputId}`, value);
@@ -41,20 +42,23 @@ const SliderNumericInput = ({ inputId, initialMin, initialMax, initialStep, init
   };
 
   const handleNumberChange = (e) => {
-    const newValue = Number(e.target.value);
-    if (newValue >= min && newValue <= max) {
-      setValue(newValue);
-      window.Shiny.setInputValue(`${inputId}`, e.target.value);
+    const newValue = e.target.value;
+    setValue(newValue);
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current); // Clear the previous timeout if it exists
     }
+
+    timeoutRef.current = setTimeout(() => {
+      if (newValue !== '' && !isNaN(newValue) && newValue >= min && newValue <= max) {
+        window.Shiny.setInputValue(`${inputId}`, newValue);
+      }
+    }, 400);
   };
 
- // const sliderClass = fillDirection === 'left'
-  //  ? "leftSlider"
-  //  : "rightSlider" ;
-    
   const fillStyle = fillDirection === 'left'
     ? { background: `linear-gradient(to right, rgb(233, 84, 32) ${(value - min) / (max - min) * 100}%, #ddd ${(value - min) / (max - min) * 100}%)` }
-    : { background: `linear-gradient(to right, #ddd ${(value - min) / (max - min) * 100}%, rgb(233, 84, 32) ${(value - min) / (max - min) * 100}%)` };    
+    : { background: `linear-gradient(to right, #ddd ${(value - min) / (max - min) * 100}%, rgb(233, 84, 32) ${(value - min) / (max - min) * 100}%)` };
 
   return (
     <div className="slider-container">
@@ -70,7 +74,6 @@ const SliderNumericInput = ({ inputId, initialMin, initialMax, initialStep, init
           onChange={handleRangeChange}
           onMouseUp={handleRangeMouseUp}
           className="slider"
-          //className={sliderClass}
           style={fillStyle}
         />
         <div className="slider-labels">
@@ -80,8 +83,6 @@ const SliderNumericInput = ({ inputId, initialMin, initialMax, initialStep, init
       </div>
       <input
         type="number"
-        min={min}
-        max={max}
         step={step}
         value={value}
         onChange={handleNumberChange}

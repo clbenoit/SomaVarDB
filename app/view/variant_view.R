@@ -42,29 +42,26 @@ server <- function(id, con, appData, genomicData, main_session) {
     
     ns <- session$ns
     
+    observeEvent(genomicData$variant_infos,{
+      req(genomicData$variant_infos)
+      updateSelectizeInput(session, inputId = "selectedvariant",
+                           choices =  genomicData$variant_infos, server = TRUE)
+    })
+    
     observeEvent(appData$selectors$variant, {
       req(genomicData$variant_infos)
       req(appData$selectors$variant)
       updateSelectizeInput(session, inputId = "selectedvariant", selected = appData$selectors$variant,
                          choices = genomicData$variant_infos, server = TRUE)
     })
- 
-    ######## VARIANTS VIEW #####
-    variant_annoter_2_reactives <- reactiveValues(my_variant_id = NULL, launchmodal = NULL)
-    observeEvent(input$selectedvariant,{
+    
+    observeEvent(input$selectedvariant, {
       req(input$selectedvariant)
-      variant_annoter_2_reactives$my_variant_id <- input$selectedvariant
+      appData$annoter_reactives$my_variant_id <- input$selectedvariant
     })
+    
     variant_annoter$server("variant_annoter_variant_view", appData = appData, modal = FALSE)
-    #mod_variant_annoter_server("variant_annoter_2", modal = FALSE, reactiveValues = variant_annoter_2_reactives, conn = con, reload = reload)  
-    variant_view_reactive_values <- reactiveValues(total_freq = NULL, samples_list = NULL)
-    
-    observe({
-      req(genomicData$variant_infos)
-      updateSelectizeInput(session, inputId = "selectedvariant",
-                           choices =  genomicData$variant_infos, server = TRUE)
-    })
-    
+
     variant_view_total_freq <- reactive({
       req(input$selectedvariant)
       return(dbGetQuery(appData$con, paste0("SELECT * from frequencies WHERE variant_id = '", input$selectedvariant, "'")) %>%
@@ -111,8 +108,8 @@ server <- function(id, con, appData, genomicData, main_session) {
                  "gnomADv3",
                  "polyphen", "sift")) 
       return(collapsed)
-    }) %>% bindCache(list(input$selectedvariant,appData$db_metadata$hash)) %>%
-      bindEvent(c(input$selectedvariant, appData$db_metadata$hash))
+    }) %>% #bindCache(list(input$selectedvariant, appData$db_metadata$hash, appData$annoter_reactives$reload)) %>%
+      bindEvent(c(input$selectedvariant, appData$db_metadata$hash, appData$annoter_reactives$reload))
     
     observe({
       output$current_var_table  <- renderDataTable(datatable(current_var_table(),
@@ -155,7 +152,6 @@ server <- function(id, con, appData, genomicData, main_session) {
                     rownames = FALSE,escape = FALSE )) 
     
     observe({
-      req(variant_annoter_2_reactives$my_variant_id)
       req(variant_view_samples_list())
       req(variant_view_total_freq())
       req(current_var_table())
@@ -166,14 +162,14 @@ server <- function(id, con, appData, genomicData, main_session) {
           fluidRow(
             shinydashboardPlus::box(
               title = "Variant info in VKB", closable = TRUE,
-              width = 12, status = "primary",solidHeader = TRUE, collapsible = TRUE,
+              width = 12, status = "primary", solidHeader = TRUE, collapsible = TRUE,
               dropdownMenu = boxDropdown(boxDropdownItem("Supplementary info", id = "dropdownItem", icon = icon("info")),icon = icon("plus")),
               tabsetPanel(id = "tabsBoxVariant",
                           tabPanel("Infos",
                                    fluidRow(
                                      column(width = 6,
                                             infoBox("Variant frequence over the whole database",
-                                                    value = as.character(format(variant_view_total_freq(),scientific = TRUE, digits = 2)),
+                                                    value = as.character(format(variant_view_total_freq(), scientific = TRUE, digits = 2)),
                                                     icon = icon("dna"),color = "olive",width = "100%")),
                                      column(width = 6,
                                             infoBox("Number of samples with the variation in DB ",

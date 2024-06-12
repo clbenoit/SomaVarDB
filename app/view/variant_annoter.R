@@ -11,7 +11,7 @@ box::use(
   DBI[dbGetQuery, dbSendQuery, dbReadTable, dbWriteTable],
   shinyWidgets[progressSweetAlert, closeSweetAlert, pickerInput, ask_confirmation, sendSweetAlert],
   stringr[str_split],
-  DT[renderDataTable, datatable]
+  DT[renderDataTable, datatable, dataTableOutput]
   
 )
 
@@ -88,7 +88,6 @@ server <- function(id, con, appData, modal = FALSE) {
       req(input$deletecomconf)
       removeModal()
       com_id <- paste0(str_split(input$godeletecom, pattern = "_")[[1]][c(3)],collapse = "_")
-      print(com_id)
       dbSendQuery(appData$con, paste0("DELETE FROM variant_comments WHERE com_id = '", com_id, "';"))
       #dbSendQuery(con, paste0("DELETE FROM variant_comments WHERE com_id = '",com_id,"' AND variant_id = '",data$annoter_reactives$my_variant_id,"';"))
       reloadinside$value <- reloadinside$value +1
@@ -98,7 +97,6 @@ server <- function(id, con, appData, modal = FALSE) {
     if (modal == TRUE){
       observeEvent(appData$annoter_reactives$launchmodal, {
         req(appData$annoter_reactives$my_variant_id)
-        print(appData$annoter_reactives$my_variant_id)
         VKB <- unique(dbGetQuery(appData$con, paste0("SELECT VKB from variant_impact WHERE variant_id = '",appData$annoter_reactives$my_variant_id,"'"))$VKB)
         comments_table <- dbReadTable(conn = appData$con, name="variant_comments") %>% 
           filter(variant_id == appData$annoter_reactives$my_variant_id) %>%
@@ -130,7 +128,6 @@ server <- function(id, con, appData, modal = FALSE) {
     
     observeEvent(input$okComment,{
       if (modal == TRUE){removeModal()}
-      print(input$okComment)
       progressSweetAlert(session = session, id = "Just_to_restore_reactivity_[Tricky]_Comments",title = "",display_pct = TRUE, value = 9)
       closeSweetAlert(session = session)
       ask_confirmation(inputId = ns("annotationconfComment"), type = "warning",

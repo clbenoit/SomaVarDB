@@ -141,8 +141,6 @@ server <- function(id, con, appData, genomicData, main_session) {
     })
     ns <- session$ns
     print("entering mod_parameters_management_server")
-    # req(reactiveValuesInputs)
-    # print(reactiveValuesInputs)
     
     ######################################## MY FILTERS  ##################################
     if(dbExistsTable(appData$con, "presets")){
@@ -164,29 +162,7 @@ server <- function(id, con, appData, genomicData, main_session) {
                                         manifests_list = manifests_list)
     }
     
-    
-    # JENSUILA #
-    # appData    filters = reactiveValues(allelefrequency_value = NULL, gnomadfrequency_value= NULL, 
-    #                                     coverage_value = NULL, impact = NULL),
-    # JENSUILA #
-    #appData$
-    # observeEvent(c(appData$filters$allelefrequency_value, appData$filters$coverage_value, 
-    #                appData$filters$quality_value, appData$filters$impact,
-    #                appData$filters$gnomadfrequency_value),{  
-    # # observeEvent(c(reactiveValuesInputs$allelefrequencynum, reactiveValuesInputs$coveragenum, 
-    # #                reactiveValuesInputs$qualitynum, reactiveValuesInputs$impact,
-    # #                reactiveValuesInputs$gnomadnum),{  
-    #   print("init user preset"); 
-    #   # req(reactiveValuesInputs$allelefrequencynum); req(reactiveValuesInputs$coveragenum); 
-    #   # req(reactiveValuesInputs$qualitynum); req(reactiveValuesInputs$impact); req(reactiveValuesInputs$gnomadnum)
-    #   req(appData$filters$allelefrequency_value); req(appData$filters$coverage_value);
-    #   req(appData$filters$quality_value); req(appData$filters$impact);
-    #   req(appData$filters$gnomadfrequency_value)               
-    #   user_parameters$init <- user_parameters$init + 1
-    # })
-    
     observeEvent(appData$user_parameters$init_presets_manager, ignoreInit = FALSE, ignoreNULL = FALSE, {
-      #req(user_parameters$init)
       req(appData$user_parameters$init_presets_manager)
       print("update user metadata (trlist,presetslist,manifestslist...) in mod_parameters_management module")
       print(user_parameters$manifests_list)
@@ -275,13 +251,6 @@ server <- function(id, con, appData, genomicData, main_session) {
                    appData$filters$impact,
                    appData$filters$trlist,
                    appData$filters$manifest#,
-                   # reactiveValuesInputs$allelefrequencynum,
-                   # reactiveValuesInputs$coveragenum,
-                   # reactiveValuesInputs$qualitynum,
-                   # reactiveValuesInputs$gnomadfrequency,
-                   # reactiveValuesInputs$impact,
-                   # reactiveValuesInputs$trlist,
-                   #reactiveValuesInputs$manifest), 
                    ), ignoreNULL = TRUE, {
                      req(input$selectset)
                      req(user_parameters$filters)
@@ -338,8 +307,6 @@ server <- function(id, con, appData, genomicData, main_session) {
     
     observeEvent(reactiveValuesInputsInside$impact, {
       req(reactiveValuesInputsInside$impact)
-      print('update impact :')
-      print(reactiveValuesInputsInside$impact)
       updateSelectInput(session = session, inputId = 'impactsetup', selected = reactiveValuesInputsInside$impact)
     })
     
@@ -622,7 +589,6 @@ server <- function(id, con, appData, genomicData, main_session) {
     })
     
     #### END OF SERVER PART ####
-    
  
   })
 }

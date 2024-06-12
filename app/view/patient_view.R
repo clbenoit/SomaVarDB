@@ -73,7 +73,7 @@ server <- function(id, con, appData, genomicData, main_session) {
       ) %>%
         filter((dp >= appData$filters$coverage_value) &
                 (qa >= appData$filters$quality_value) &
-                (af >= appData$filters$allelefrequency_value))
+                (af <= appData$filters$allelefrequency_value))
       )
     }) %>% bindCache({list(input$selectedsample,
                            appData$filters$allelefrequency_value,
@@ -110,7 +110,7 @@ server <- function(id, con, appData, genomicData, main_session) {
       req(current_sample_variants_ids())
       req(current_sample_variants_genos())
       req(appData$filters$impact)
-      print(paste("reload value : ",appData$annoter_reactives$reload))
+      print(paste("reload value : ", appData$annoter_reactives$reload))
       print("running current_sample_variants_impact")
       current_sample_variants_impact <- dbGetQuery(appData$con,
                                                    paste0("SELECT * from variant_impact WHERE variant_id IN ('",
@@ -256,8 +256,6 @@ server <- function(id, con, appData, genomicData, main_session) {
         
       output$current_sample_variants_table <- renderDataTable({
         print("Rendering current sample variants table")
-        print("lala")
-        #print(utils::head(current_sample_variants_table()))
         req(current_sample_variants_table())
         if(nrow(current_sample_variants_genos()) >=1 && nrow(current_sample_variants_impact()) >=1){
           datatable(current_sample_variants_table(),
