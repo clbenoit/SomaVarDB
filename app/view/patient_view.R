@@ -132,7 +132,7 @@ server <- function(id, con, appData, genomicData, main_session) {
       return(dfA_overlaps)
     }) %>% bindCache({list(appData$filters$manifest, current_sample_variants_infos_tmp(), appData$db_metadata$hash)})
 
-    current_sample_variants_impact <- reactive({
+    current_sample_variants_impact_tmp <- reactive({
       req(current_sample_variants_ids())
       req(current_sample_variants_genos())
       req(appData$filters$impact)
@@ -148,7 +148,25 @@ server <- function(id, con, appData, genomicData, main_session) {
       return(current_sample_variants_impact)
     }) %>% bindCache({list(input$selectedsample, appData$filters$impact, appData$db_metadata$hash)}) %>%
       bindEvent(c(current_sample_variants_ids(), appData$filters$impact, appData$annoter_reactives$reload))    
+
+    current_sample_variants_impact <- reactive({
+      
+      req(current_sample_variants_impact_tmp())
+      
+      transcripts_list <- dbReadTable(appData$con, name = paste0(appData$filters$trlist, "_" , Sys.getenv("SHINYPROXY_USERNAME"), "_transcriptlist"))
+      
+      print(utils::head(transcripts_list))
+      
+      current_sample_variants_impact <- current_sample_variants_impact_tmp() %>%
+        filter(feature %in% transcripts_list$Transcripts)
+      
+      return(current_sample_variants_impact)
     
+      
+    }) %>% bindCache({list(appData$filters$trlist, current_sample_variants_impact_tmp(), appData$db_metadata$hash)}) %>%
+      bindEvent(c(appData$filters$trlist, current_sample_variants_impact_tmp()))
+      
+        
     current_sample_variants_MD <- reactive({
       req(current_sample_variants_ids())
       req(appData$filters$gnomadfrequency_value)
@@ -272,7 +290,8 @@ server <- function(id, con, appData, genomicData, main_session) {
                            appData$filters$coverage_value,
                            appData$filters$quality_value,
                            appData$db_metadata$hash,
-                           appData$filters$manifest)}) %>%
+                           appData$filters$manifest,
+                           appData$filters$trlist)}) %>%
       bindEvent(c(current_sample_variants_impact(), 
                   current_sample_variants_infos(), 
                   current_sample_variants_genos(), 

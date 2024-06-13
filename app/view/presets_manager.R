@@ -167,7 +167,6 @@ server <- function(id, appData, genomicData, main_session) {
     observeEvent(appData$user_parameters$init_presets_manager, ignoreInit = FALSE, ignoreNULL = FALSE, {
       req(appData$user_parameters$init_presets_manager)
       print("update user metadata (trlist,presetslist,manifestslist...) in mod_parameters_management module")
-      print(user_parameters$manifests_list)
       updateSelectInput(session = session, inputId = 'selectset', choices = c(user_parameters$filters$name,"In use filter values"), selected = "In use filter values")
       updateSelectInput(session = session, inputId = 'selectlist', choices = user_parameters$transcript_lists)
       updateSelectInput(session = session, inputId = 'trlistsetup', choices = c(user_parameters$transcript_lists,"None"), selected = c("None"))

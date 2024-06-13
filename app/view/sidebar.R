@@ -130,5 +130,10 @@ server <- function(id, con, appData) {
       appData$filters$manifest <- input$manifest
     })
  
+    observeEvent(input$trlist, {
+      req(input$trlist)
+      appData$filters$trlist <- input$trlist
+    })
+    
   })
 }
