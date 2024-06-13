@@ -1,15 +1,16 @@
 box::use(
   shiny[bootstrapPage, div, moduleServer, NS, renderUI,
-        tags, uiOutput, shinyOptions, 
-        observeEvent, HTML, tagList, req,
-        actionButton, icon, span, img, br, 
-        tabsetPanel, tabPanel],
+        tags, uiOutput, shinyOptions, column,
+        observeEvent, HTML, tagList, req, conditionalPanel,
+        actionButton, icon, span, img, br, modalButton,
+        tabsetPanel, tabPanel, showModal, modalDialog, fluidRow],
   cachem[cache_disk],
   config[get],
   shiny.router[router_server, change_page, router_ui, route],
   DBI[dbConnect],
   RSQLite[SQLite],
-  shinydashboard[dashboardPage, dashboardHeader, dashboardSidebar, dashboardBody], 
+  shinydashboard[dashboardPage, dashboardHeader, dashboardSidebar, dashboardBody, infoBox],
+  shinydashboardPlus[boxDropdown, boxDropdownItem]
 )
 
 box::use(
@@ -126,8 +127,8 @@ server <- function(id) {
     })
 
     genomicDataManager <- genomicDataManager$new()
-    genomicDataManager$loadGenomicData(con)
-    
+    genomicDataManager$loadGenomicData(appDataManager$con)
+
     observeEvent(input$goparams, {
       req(input$goparams)
       print("go parameters view")
@@ -143,6 +144,8 @@ server <- function(id) {
     patient_view$server("patient_view", appData = appDataManager, genomicData = genomicDataManager, main_session = session)
     variant_view$server("variant_view", appData = appDataManager, genomicData = genomicDataManager, main_session = session)
     variant_annoter$server("variant_annoter", appData = appDataManager, modal = TRUE)
+    run_view$server("run_view", appData = appDataManager, genomicData = genomicDataManager, main_session = session)
+    
     
     observeEvent(input$tabsBody, {
       req(input$tabsBody)
@@ -150,6 +153,38 @@ server <- function(id) {
     })
     
     presets_manager$server("presets_manager", appData = appDataManager)
+
     
+    observeEvent(input$godbinfo,{ 
+      req(input$godbinfo)
+      showModal(modalDialog(size = "l",
+                            fluidRow(
+                              shinydashboardPlus::box(
+                                title = "Overview of the database", closable = FALSE ,
+                                width = 12, status = "primary", solidHeader = TRUE, collapsible = FALSE,
+                                dropdownMenu = boxDropdown(
+                                  boxDropdownItem("Supplementary info", id = "dropdownItem", icon = icon("info")),icon = icon("plus")),
+                                tabsetPanel(id = "tabsBox",
+                                            tabPanel("Tab1",
+                                                     fluidRow(
+                                                       column(width = 6,
+                                                              infoBox("Total number of variants ",
+                                                                      value = as.character(appDataManager$db_metadata$nb_variants),
+                                                                      icon = icon("dna"),color = "olive",width = "100%")
+                                                       ),
+                                                       column(width = 6,
+                                                              infoBox("Total number of samples : ",
+                                                                      value = as.character(appDataManager$db_metadata$nb_samples),
+                                                                      icon = icon("users"), color = "light-blue",width = "100%")
+                                                       ))),
+                                            tabPanel("Tab2","tab2")),
+                                conditionalPanel(condition = "input.dropdownItem == true","supp figures")
+                              )
+                            ),
+                            easyClose = TRUE,
+                            footer = tagList(modalButton("OK"))
+      ))
+    })    
+        
   })
 }

@@ -41,8 +41,8 @@ appDataManager <- R6::R6Class(
           self$user_parameters$manifests_list <- gsub(paste0("_", Sys.getenv("SHINYPROXY_USERNAME")), "", manifests_list$manifests)
         }
         
-        if(DBI::dbExistsTable(conn = con,"presets")){
-          presets <- DBI::dbReadTable(con,"presets") %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
+        if(DBI::dbExistsTable(conn = con, "presets")){
+          presets <- DBI::dbReadTable(con, "presets") %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
           self$user_parameters$presets <- c(presets$name,"None")
         }
         

@@ -124,6 +124,11 @@ server <- function(id, con, appData) {
       req(input$impact)
       appData$filters$impact <- input$impact
     })
+    
+    observeEvent(input$manifest, {
+      req(input$manifest)
+      appData$filters$manifest <- input$manifest
+    })
  
   })
 }

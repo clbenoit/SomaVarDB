@@ -4,13 +4,15 @@ box::use(
   shiny[h3, moduleServer, tagList, NS, fluidPage, span, img, br, fluidRow, reactiveValues, updateNumericInput,
         column, actionButton, icon, tabsetPanel, tabPanel, selectizeInput, h1, updateSelectInput, reactive, renderTable,
         h2, numericInput, selectInput, fileInput, helpText, uiOutput, observeEvent, req, renderUI, isTruthy, 
-        showModal, modalDialog, textInput, modalButton, removeModal, HTML],
+        showModal, modalDialog, textInput, modalButton, removeModal, HTML, tableOutput],
   shinydashboard[dashboardHeader],
   shinydashboardPlus[box, boxDropdown, boxDropdownItem],
   DBI[dbGetQuery, dbExistsTable, dbReadTable, dbWriteTable, dbSendQuery],
   dplyr[`%>%`, filter], 
   shiny.router[change_page],
-  shinyWidgets[sendSweetAlert]
+  shinyWidgets[sendSweetAlert],
+  readr[read_delim, cols, col_character],
+  DBI[dbExecute]
   
 )
 
@@ -30,7 +32,7 @@ ui <- function(id) {
       title = span(img(src = 'static/CHUlogo.png', width = 40, height = 39), "My app")#,
     ),
     br(),
-    fluidRow(column(width = 12 ,actionButton(label = "go back to analysis", inputId = ns("goroot"),icon = icon("arrow-left")))),
+    fluidRow(column(width = 12 , actionButton(label = "go back to analysis", inputId = ns("goroot"),icon = icon("arrow-left")))),
     br(),
     tabsetPanel(id = ns("tabsParams"),
                 tabPanel("My Filters",
@@ -132,7 +134,7 @@ ui <- function(id) {
 }
 
 #' @export
-server <- function(id, con, appData, genomicData, main_session) {
+server <- function(id, appData, genomicData, main_session) {
   moduleServer(id, function(input, output, session) {
     
     observeEvent(input$goroot,{
@@ -429,7 +431,9 @@ server <- function(id, con, appData, genomicData, main_session) {
                  br(), actionButton(width = '100%', inputId = ns('addtranscriptlist'), icon = NULL, label = 'Add this list')
           )
         )
-      } else { "File format is not correct. Make sure the file contains 'Transcripts' and 'Genes' columns."}
+      } else {
+        print(utils::head(file_data()))
+        "File format is not correct. Make sure the file contains 'Transcripts' and 'Genes' columns."}
     })
     
     # Display the example correctly formatted data

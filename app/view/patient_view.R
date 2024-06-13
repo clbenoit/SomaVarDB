@@ -5,12 +5,15 @@ box::use(
         span, br, column, fluidRow, h4, uiOutput, renderUI, NS, tags, updateTabsetPanel, 
         sliderInput, req, numericInput, selectInput, selectizeInput, observeEvent, 
         updateSelectizeInput, fluidPage, bindCache, reactive, observe, reactiveValues, bindEvent, isolate],
-  dplyr[filter, `%>%`, select, case_when, mutate, arrange, inner_join],
-  DBI[dbGetQuery, dbSendQuery],
+  dplyr[filter, `%>%`, select, case_when, mutate, arrange, inner_join, rename],
+  DBI[dbGetQuery, dbSendQuery, dbReadTable],
   shinyWidgets[progressSweetAlert, closeSweetAlert],
   stringr[str_split, str_extract], 
   shinydashboardPlus[box],
-  DT[dataTableOutput, datatable, renderDataTable, formatStyle, styleEqual]
+  DT[dataTableOutput, datatable, renderDataTable, formatStyle, styleEqual],
+  GenomicRanges[findOverlaps, GRanges],
+  IRanges[IRanges],
+  S4Vectors[queryHits]
   
 )
 
@@ -95,8 +98,8 @@ server <- function(id, con, appData, genomicData, main_session) {
                       }) %>% 
                       bindEvent(current_sample_variants_genos())
 
-    current_sample_variants_infos <- reactive({
-      print("running current_sample_variants_infos")
+    current_sample_variants_infos_tmp <- reactive({
+      print("running current_sample_variants_infos_tmp")
       req(current_sample_variants_ids())
       current_sample_variants_infos <- dbGetQuery(appData$con,
                                                   paste0("SELECT * from variant_info WHERE variant_id IN ('",
@@ -104,7 +107,30 @@ server <- function(id, con, appData, genomicData, main_session) {
                                                          "');")
       ) %>% select(-c("af"))
       return(current_sample_variants_infos)
-    }) %>% bindCache({paste(current_sample_variants_ids())})      
+    }) %>% bindCache({paste(current_sample_variants_ids())})
+    
+    current_sample_variants_infos <- reactive({
+      req(appData$filters$manifest)
+      req(current_sample_variants_infos_tmp)
+      print("filtering in silico panel")
+      selected_bed <- dbReadTable(appData$con, name = paste0(appData$filters$manifest, "_", Sys.getenv("SHINYPROXY_USERNAME")))
+
+      metadata_columns <- setdiff(names(current_sample_variants_infos_tmp()), c("chr", "start", "end"))
+      
+      grA <- GRanges(seqnames = current_sample_variants_infos_tmp()$chr,
+                     ranges = IRanges(start = as.numeric(current_sample_variants_infos_tmp()$start),
+                                      end = as.numeric(current_sample_variants_infos_tmp()$end)),
+                     mcols = current_sample_variants_infos_tmp()[, metadata_columns, drop = FALSE])   
+      grB <- GRanges(seqnames = selected_bed$chromosome,
+                     ranges = IRanges(start = as.numeric(selected_bed$start), end = as.numeric(selected_bed$end)))
+    
+      overlaps <- findOverlaps(grA, grB)
+      grA_overlaps <- grA[queryHits(overlaps)]
+      dfA_overlaps <- as.data.frame(grA_overlaps) %>% rename(chr = seqnames)
+      names(dfA_overlaps) <- gsub("^mcols\\.", "", names(dfA_overlaps))
+      print(nrow(dfA_overlaps))
+      return(dfA_overlaps)
+    }) %>% bindCache({list(appData$filters$manifest, current_sample_variants_infos_tmp(), appData$db_metadata$hash)})
 
     current_sample_variants_impact <- reactive({
       req(current_sample_variants_ids())
@@ -245,7 +271,8 @@ server <- function(id, con, appData, genomicData, main_session) {
                            appData$filters$allelefrequency_value,
                            appData$filters$coverage_value,
                            appData$filters$quality_value,
-                           appData$db_metadata$hash)}) %>%
+                           appData$db_metadata$hash,
+                           appData$filters$manifest)}) %>%
       bindEvent(c(current_sample_variants_impact(), 
                   current_sample_variants_infos(), 
                   current_sample_variants_genos(), 
