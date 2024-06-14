@@ -24,8 +24,6 @@ box::use(
   app/view/presets_manager,
 )
 
-
-
 #' @export
 ui <- function(id) {
   ns <- NS(id)
@@ -140,7 +138,7 @@ server <- function(id) {
       change_page('presets_manager_page')
     })
     
-    sidebar$server("sidebar", appData = appDataManager)
+    sidebar$server("sidebar", appData = appDataManager, main_session = session)
     patient_view$server("patient_view", appData = appDataManager, genomicData = genomicDataManager, main_session = session)
     variant_view$server("variant_view", appData = appDataManager, genomicData = genomicDataManager, main_session = session)
     variant_annoter$server("variant_annoter", appData = appDataManager, modal = TRUE)

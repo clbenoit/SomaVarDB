@@ -5,7 +5,7 @@ box::use(
   shiny[h3, moduleServer, tagList, conditionalPanel, tabsetPanel, tabPanel, 
         span, br, column, fluidRow, h4, uiOutput, renderUI, NS, tags, sliderInput, req, numericInput, selectInput, reactiveVal,
         observeEvent, updateSliderInput, updateNumericInput, outputOptions, reactive, 
-        renderText, textOutput],
+        renderText, textOutput, updateSelectInput],
   bsplus[bs_embed_tooltip, shiny_iconlink ],
   dplyr[`%>%`, filter]
 )
@@ -23,7 +23,7 @@ ui <- function(id) {
 }
 
 #' @export
-server <- function(id, con, appData) {
+server <- function(id, con, appData, main_session) {
   moduleServer(id, function(input, output, session) {
     
     ns <- session$ns
@@ -83,14 +83,14 @@ server <- function(id, con, appData) {
               selectInput(inputId = ns("manifest"), width = '100%', label = "Manifest",
                 choices  = appData$user_parameters$manifests_list , selected = "None"),
               selectInput(inputId = ns("trlist"), width = '100%', label = "Select a prefered transcripts list",
-                choices  = appData$user_parameters$transcript_lists , selected = "None")
+                choices  = c(appData$user_parameters$transcript_lists, "None") , selected = "None")
               ),
               tabPanel("Phenotype", br(),
                 "my phenotype selectors"
               ),
               tabPanel("Preset", br(),
                 selectInput(inputId = ns("selectedpreset"), width = '100%', label = "Select a filters preset",
-                   choices  = appData$user_parameters$presets ,selected = "None")
+                   choices  = c(appData$user_parameters$presets$name, "None") ,selected = "None")
               )
             )
           ),
@@ -133,6 +133,21 @@ server <- function(id, con, appData) {
     observeEvent(input$trlist, {
       req(input$trlist)
       appData$filters$trlist <- input$trlist
+    })
+    
+    observeEvent(input$selectedpreset ,{
+      req(input$selectedpreset)
+      if(input$selectedpreset != "None"){
+        print("loading preset")
+        loaded_preset <- appData$user_parameters$presets %>% filter(name == input$selectedpreset)
+        updateSelectInput(session = session, inputId = "coverage", selected = loaded_preset$coveragenum)
+        updateSelectInput(session = session, inputId = "quality", selected = loaded_preset$qualitynum)
+        updateSelectInput(session = session, inputId = "allelefrequency", selected = loaded_preset$allelefrequencynum)
+        updateSelectInput(session = session, inputId = "gnomadfrequency", selected = loaded_preset$gnomadfrequencynum)
+        updateSelectInput(session = session, inputId = "impact", selected = loaded_preset$impact)
+        updateSelectInput(session = session, inputId = "manifest", selected = loaded_preset$manifest)
+        updateSelectInput(session = session, inputId = "trlist", selected = loaded_preset$trlist)
+      }
     })
     
   })

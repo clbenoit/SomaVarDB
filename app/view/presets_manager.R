@@ -144,50 +144,32 @@ server <- function(id, appData, genomicData, main_session) {
     ns <- session$ns
     print("entering mod_parameters_management_server")
     
-    ######################################## MY FILTERS  ##################################
-    if(dbExistsTable(appData$con, "presets")){
-      print('load initial presets')
-      presets <- dbReadTable(appData$con,"presets")
-      
-      transcript_lists <- dbGetQuery(conn = appData$con, paste0("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%", 
-                                                             Sys.getenv("SHINYPROXY_USERNAME"),"_transcriptlist",
-                                                             "%';"))
-      transcript_lists <- gsub(paste0("_",Sys.getenv("SHINYPROXY_USERNAME")),"",gsub("_transcriptlist","",transcript_lists$name))
-      
-      manifests_list <- dbReadTable(conn = appData$con, name = "manifests_list") %>% filter(user_id == Sys.getenv("SHINYPROXY_USERNAME"))
-      manifests_list <- gsub(paste0("_",Sys.getenv("SHINYPROXY_USERNAME")),"",manifests_list$manifests)
-      
-      user_parameters <- reactiveValues(filters = presets %>% 
-                                          filter(user == Sys.getenv("SHINYPROXY_USERNAME")), 
-                                        init = 0,
-                                        transcript_lists = transcript_lists,
-                                        manifests_list = manifests_list)
-    }
-    
     observeEvent(appData$user_parameters$init_presets_manager, ignoreInit = FALSE, ignoreNULL = FALSE, {
       req(appData$user_parameters$init_presets_manager)
       print("update user metadata (trlist,presetslist,manifestslist...) in mod_parameters_management module")
-      updateSelectInput(session = session, inputId = 'selectset', choices = c(user_parameters$filters$name,"In use filter values"), selected = "In use filter values")
-      updateSelectInput(session = session, inputId = 'selectlist', choices = user_parameters$transcript_lists)
-      updateSelectInput(session = session, inputId = 'trlistsetup', choices = c(user_parameters$transcript_lists,"None"), selected = c("None"))
-      updateSelectInput(session = session, inputId = 'selectManifest', choices = user_parameters$manifests_list)
-      updateSelectInput(session = session, inputId = 'manifestlistsetup', choices = c(user_parameters$manifests_list,"None"), selected = c("None"))
+      updateSelectInput(session = session, inputId = 'selectset', choices = c(appData$user_parameters$presets$name, "In use filter values"), selected = "In use filter values")
+      updateSelectInput(session = session, inputId = 'selectlist', choices = appData$user_parameters$transcript_lists)
+      updateSelectInput(session = session, inputId = 'trlistsetup', choices = c(appData$user_parameters$transcript_lists,"None"), selected = c("None"))
+      updateSelectInput(session = session, inputId = 'selectManifest', choices = appData$user_parameters$manifests_list)
+      updateSelectInput(session = session, inputId = 'manifestlistsetup', choices = c(appData$user_parameters$manifests_list,"None"), selected = c("None"))
     })
     
-    observeEvent(input$confirmadd,ignoreNULL = TRUE, {  
-      req(user_parameters$filters)
+    observeEvent(input$confirmadd, ignoreNULL = TRUE, {  
+      req(appData$user_parameters$presets)
+      
       if(dbExistsTable(appData$con, "presets")){
         presets <- dbReadTable(appData$con, "presets")
-        user_parameters$filters <- presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
-        updateSelectInput(session = session, inputId = 'selectset', choices = c(user_parameters$filters$name, "In use filter values"), selected = input$newpresetname)
+        appData$user_parameters$presets <- presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
+        updateSelectInput(session = session, inputId = 'selectset', choices = c(appData$user_parameters$presets$name, "In use filter values"), selected = input$newpresetname)
       }
     })
+    
     observeEvent(input$confirmremove, ignoreNULL = TRUE, {  
-      req(user_parameters$filters)
+      req(appData$user_parameters$presets)
       if(dbExistsTable(appData$con, "presets")){
         presets <- dbReadTable(appData$con, "presets")
-        user_parameters$filters <- presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
-        updateSelectInput(session = session, inputId = 'selectset', choices = c(user_parameters$filters$name, "In use filter values"))
+        appData$user_parameters$presets <- presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
+        updateSelectInput(session = session, inputId = 'selectset', choices = c(appData$user_parameters$presets$name, "In use filter values"))
       }
     })
     
@@ -236,12 +218,9 @@ server <- function(id, appData, genomicData, main_session) {
       removeModal()
     })
     
-    reactiveValuesInputsInside <- reactiveValues("allelefrequencynum" = 0,
-                                                 "coveragenum" = 0 ,
-                                                 "qualitynum" = 0 ,
-                                                 "gnomadnum" = 0,
-                                                 "impact" = 0,
-                                                 "trlist" = "None", 
+    reactiveValuesInputsInside <- reactiveValues("allelefrequencynum" = 0, "coveragenum" = 0 ,
+                                                 "qualitynum" = 0 , "gnomadnum" = 0,
+                                                 "impact" = 0,  "trlist" = "None", 
                                                  "manifest" = "None")
     
     observeEvent(c(input$selectset,
@@ -254,7 +233,7 @@ server <- function(id, appData, genomicData, main_session) {
                    appData$filters$manifest#,
                    ), ignoreNULL = TRUE, {
                      req(input$selectset)
-                     req(user_parameters$filters)
+                     req(appData$user_parameters$presets)
                      if(input$selectset == 'In use filter values'){
                        print('Load In use filter values')
                        reactiveValuesInputsInside$allelefrequencynum <- appData$filters$allelefrequency_value
@@ -267,7 +246,7 @@ server <- function(id, appData, genomicData, main_session) {
                      } else {
                        print(paste('Load ', input$selectset, ' preset filters values (inside module)'))
                        presets <- dbReadTable(appData$con, "presets")
-                       current_preset <- user_parameters$filters %>% filter(name  == input$selectset)
+                       current_preset <- appData$user_parameters$presets %>% filter(name  == input$selectset)
                        if(current_preset$allelefrequencynum != "Emptypreset"){
                          values <- dbGetQuery(conn = appData$con,
                                               paste0("SELECT  allelefrequencynum, coveragenum , qualitynum , gnomadnum , impact, trlist, manifest FROM presets ",
@@ -288,37 +267,44 @@ server <- function(id, appData, genomicData, main_session) {
     
     observeEvent(reactiveValuesInputsInside$allelefrequencynum, {
         req(reactiveValuesInputsInside$allelefrequencynum)      
-      updateNumericInput(session = session, inputId = 'allelefrequencynumsetup', value = reactiveValuesInputsInside$allelefrequencynum)
+        updateNumericInput(session = session, inputId = 'allelefrequencynumsetup',
+                           value = reactiveValuesInputsInside$allelefrequencynum)
     })
     
     observeEvent(reactiveValuesInputsInside$coveragenum, {
       req(reactiveValuesInputsInside$coveragenum)
-      updateNumericInput(session = session, inputId = 'coveragenumsetup', value = reactiveValuesInputsInside$coveragenum)
+      updateNumericInput(session = session, inputId = 'coveragenumsetup',
+                         value = reactiveValuesInputsInside$coveragenum)
     })
     
     observeEvent(reactiveValuesInputsInside$qualitynum, {
       req(reactiveValuesInputsInside$qualitynum)
-      updateNumericInput(session = session, inputId = 'qualitynumsetup', value = reactiveValuesInputsInside$qualitynum)
+      updateNumericInput(session = session, inputId = 'qualitynumsetup',
+                         value = reactiveValuesInputsInside$qualitynum)
     })
     
     observeEvent(reactiveValuesInputsInside$gnomadnum, {
       req(reactiveValuesInputsInside$gnomadnum)
-      updateNumericInput(session = session, inputId = 'gnomadnumsetup', value = reactiveValuesInputsInside$gnomadnum)
+      updateNumericInput(session = session, inputId = 'gnomadnumsetup',
+                         value = reactiveValuesInputsInside$gnomadnum)
     })
     
     observeEvent(reactiveValuesInputsInside$impact, {
       req(reactiveValuesInputsInside$impact)
-      updateSelectInput(session = session, inputId = 'impactsetup', selected = reactiveValuesInputsInside$impact)
+      updateSelectInput(session = session, inputId = 'impactsetup',
+                        selected = reactiveValuesInputsInside$impact)
     })
     
     observeEvent(reactiveValuesInputsInside$trlist, {
       req(reactiveValuesInputsInside$trlist)
-      updateSelectInput(session = session, inputId = 'trlistsetup', selected = reactiveValuesInputsInside$trlist)
+      updateSelectInput(session = session, inputId = 'trlistsetup',
+                        selected = reactiveValuesInputsInside$trlist)
     })
     
     observeEvent(reactiveValuesInputsInside$manifest, {
       req(reactiveValuesInputsInside$manifest)
-      updateSelectInput(session = session, inputId = 'manifestlistsetup', selected = reactiveValuesInputsInside$manifest)
+      updateSelectInput(session = session, inputId = 'manifestlistsetup',
+                        selected = reactiveValuesInputsInside$manifest)
     })      
     
     reactiveValuesInputstoSave <-  reactiveValues("allelefrequencynum" = 0, "coveragenum" = 0 , "qualitynum" = 0, "gnomadnum" = 0,
@@ -333,9 +319,9 @@ server <- function(id, appData, genomicData, main_session) {
     observeEvent( input$manifestlistsetup, {reactiveValuesInputstoSave$manifest <- input$manifestlistsetup })
     
     observeEvent(input$save_params, {
-      req(reactiveValuesInputstoSave); req(input$save_params); req(user_parameters$filters); req(input$selectset);req(input$trlistsetup);req(input$manifestlistsetup)
+      req(reactiveValuesInputstoSave); req(input$save_params); req(appData$user_parameters$presets); req(input$selectset);req(input$trlistsetup);req(input$manifestlistsetup)
       print("Saving current parameters")
-      current_preset <- user_parameters$filters %>% filter(name  == input$selectset)
+      current_preset <- appData$user_parameters$presets %>% filter(name  == input$selectset)
       if(nrow(current_preset) >=1){
         dbSendQuery(conn = appData$con, paste0("UPDATE presets SET ",
                                             "allelefrequencynum = '",reactiveValuesInputstoSave$allelefrequencynum , "', ",
@@ -347,7 +333,7 @@ server <- function(id, appData, genomicData, main_session) {
                                             "manifest = '", input$manifestlistsetup, "' ",
                                             "WHERE user = '", Sys.getenv("SHINYPROXY_USERNAME"), "' AND name = '", input$selectset, "' ;"))
         presets <- dbReadTable(appData$con, "presets")
-        user_parameters$filters <- presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
+        appData$user_parameters$presets <- presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
         sendSweetAlert(session = session,title = "Preset parameters saved !", 
                        text = HTML(paste("<p style='color:#086A87;'>", input$selectset, "</p>", "preset has been updated")),
                        html = TRUE,
@@ -384,8 +370,8 @@ server <- function(id, appData, genomicData, main_session) {
         "name" = input$newpresetnamecurrent)
       dbWriteTable(conn = appData$con, name = "presets", value = current_preset, append =TRUE)
       presets <- dbReadTable(appData$con, "presets")
-      user_parameters$filters <- presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
-      updateSelectInput(session = session, inputId = 'selectset', choices = c(user_parameters$filters$name, "In use filter values"), selected = input$newpresetname)
+      appData$user_parameters$presets <- presets %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
+      updateSelectInput(session = session, inputId = 'selectset', choices = c(appData$user_parameters$presets$name, "In use filter values"), selected = input$newpresetname)
       sendSweetAlert(session = session,title = HTML(paste0("<p style='color:#086A87;'>", input$newpresetnamecurrent,"</p>", " Parameters preset added !")), 
                      text = "You might have to restart the app to see it available in data analysis window",
                      type = "success")
@@ -459,9 +445,9 @@ server <- function(id, appData, genomicData, main_session) {
       req(file_data())
       removeModal()
       dbWriteTable(conn = appData$con, name = paste0(input$newtranscriptlistname, "_" , Sys.getenv("SHINYPROXY_USERNAME"),"_transcriptlist"), value = file_data())
-      user_parameters$transcript_lists <- c(input$newtranscriptlistname,user_parameters$transcript_lists)
-      updateSelectInput(session = session, inputId = 'selectlist', choices = user_parameters$transcript_lists, selected = input$newtranscriptlistname)
-      updateSelectInput(session = session, inputId = 'trlistsetup', choices = c("None", user_parameters$transcript_lists))
+      appData$user_parameters$transcript_lists <- c(input$newtranscriptlistname, appData$user_parameters$transcript_lists)
+      updateSelectInput(session = session, inputId = 'selectlist', choices = appData$user_parameters$transcript_lists, selected = input$newtranscriptlistname)
+      updateSelectInput(session = session, inputId = 'trlistsetup', choices = c("None", appData$user_parameters$transcript_lists))
       sendSweetAlert(session = session,
                      title = HTML(paste0("<p style='color:#086A87;'>", input$newtranscriptlistname,"</p>",
                                          " Transcript List added !")), 
@@ -474,8 +460,8 @@ server <- function(id, appData, genomicData, main_session) {
       req(input$selectlist)
       print(paste0("DROP TABLE IF EXISTS ",input$selectlist, "_" , Sys.getenv("SHINYPROXY_USERNAME"),"_transcriptlist;"))
       dbSendQuery(conn = appData$con, paste0("DROP TABLE IF EXISTS ",input$selectlist, "_" , Sys.getenv("SHINYPROXY_USERNAME"),"_transcriptlist;"))
-      user_parameters$transcript_lists <- user_parameters$transcript_lists[user_parameters$transcript_lists != input$selectlist]
-      updateSelectInput(session = session, inputId = 'selectlist', choices = c(user_parameters$transcript_lists ,"None"))
+      appData$user_parameters$transcript_lists <- appData$user_parameters$transcript_lists[appData$user_parameters$transcript_lists != input$selectlist]
+      updateSelectInput(session = session, inputId = 'selectlist', choices = c(appData$user_parameters$transcript_lists ,"None"))
     })
     
     observeEvent(input$dropdownExample,{
@@ -556,9 +542,9 @@ server <- function(id, appData, genomicData, main_session) {
       dbWriteTable(conn = appData$con, name = manifest_name, value = file_dataManifest(), row.names = FALSE, overwrite = TRUE)
       add_to_list <- data.frame(user_id = Sys.getenv("SHINYPROXY_USERNAME") , manifests = manifest_name)
       dbWriteTable(conn = appData$con, name = "manifests_list", value = add_to_list, row.names = FALSE, append = TRUE)
-      user_parameters$manifests_list <- c(user_parameters$manifests_list, input$newmanifestname)
-      updateSelectInput(session = session, inputId = 'manifestlistsetup', choices = c("None", user_parameters$manifests_list))
-      updateSelectInput(session = session, inputId = 'selectManifest', choices = user_parameters$manifests_list, selected = input$newmanifestname)
+      appData$user_parameters$manifests_list <- c(appData$user_parameters$manifests_list, input$newmanifestname)
+      updateSelectInput(session = session, inputId = 'manifestlistsetup', choices = c("None", appData$user_parameters$manifests_list))
+      updateSelectInput(session = session, inputId = 'selectManifest', choices = appData$user_parameters$manifests_list, selected = input$newmanifestname)
       
       sendSweetAlert(session = session,
                      title = "Manifest added to database !", 
@@ -575,8 +561,8 @@ server <- function(id, appData, genomicData, main_session) {
       req(input$selectManifest)
       print(paste0("DROP TABLE IF EXISTS ",input$selectManifest, "_" , Sys.getenv("SHINYPROXY_USERNAME"),"_manifest;"))
       dbSendQuery(conn = appData$con, paste0("DROP TABLE IF EXISTS ",input$selectManifest, "_" , Sys.getenv("SHINYPROXY_USERNAME"),"_manifest;"))
-      user_parameters$manifests_list <- user_parameters$manifests_list[user_parameters$manifests_list != input$selectManifest]
-      updateSelectInput(session = session, inputId = 'selectManifest', choices = c(user_parameters$manifests_list ,"None"))
+      appData$user_parameters$manifests_list <- appData$user_parameters$manifests_list[appData$user_parameters$manifests_list != input$selectManifest]
+      updateSelectInput(session = session, inputId = 'selectManifest', choices = c(appData$user_parameters$manifests_list ,"None"))
     })
     
     observeEvent(input$dropdownExampleManifest,{

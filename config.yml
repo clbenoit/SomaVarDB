@@ -1,38 +1,40 @@
 default:
-  genome_version : hg19
+  genome_version: hg19
   app_prod: no
-  use_browser : FALSE
+  use_browser: FALSE
   browser_server_path: "localpath"
   browser_client_url: http://127.0.0.1:5000
   cache_directory: default
-  multiqc : /home/ptngs/Git/multiqc
-  db_path : "app/data/testdata"
-  prefix : "test"
-  
+  multiqc: /home/ptngs/Git/multiqc
+  db_path: "app/data/testdata"
+  prefix: "test"
+
 production:
+  genome_version: "hg19"
   app_prod: yes
-  use_browser : FALSE
+  use_browser: FALSE
   browser_server_path: remote # default, remote or path
   browser_client_url: url_to_access_JBrowse_server_files_from # url to access JBrowse server files from
-  cache_directory: default # Shiny app caching directory
-  genome_ref : "genome reference file name"
-  db_path : "edit_dp_path"
-  prefix : "edit_db_prefix"
+  cache_directory: "default" # Shiny app caching directory
+  genome_ref: "genome reference file name"
+  db_path: "edit_dp_path"
+  prefix: "edit_db_prefix"
   
 demo:
+  genome_version: "hg19"
   app_prod: no
-  use_browser : FALSE
-  cache_directory: default
-  db_path : "app/data/testdata"
-  prefix : "test"
-  
+  use_browser: FALSE
+  cache_directory: "default"
+  db_path: "app/data/testdata"
+  prefix: "test"
+
 demo_browser:
-  genome_version : hg19
+  genome_version: 'hg19'
   app_prod: no
-  use_browser : TRUE
+  use_browser: TRUE
   browser_server_path: !expr system.file("extdata/testdata/JBrowseR/", package = "SomaVarDB")
   browser_client_url: http://127.0.0.1:5000
-  cache_directory: default
-  genome_ref : human_g1k_v37.fasta.gz
-  db_path : "app/data/testdata"
-  prefix : "test"
+  cache_directory: "default"
+  genome_ref: "human_g1k_v37.fasta.gz"
+  db_path: "app/data/testdata"
+  prefix: "test"

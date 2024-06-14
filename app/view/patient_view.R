@@ -4,9 +4,10 @@ box::use(
   shiny[h3, moduleServer, tagList, conditionalPanel, tabsetPanel, tabPanel, 
         span, br, column, fluidRow, h4, uiOutput, renderUI, NS, tags, updateTabsetPanel, 
         sliderInput, req, numericInput, selectInput, selectizeInput, observeEvent, 
-        updateSelectizeInput, fluidPage, bindCache, reactive, observe, reactiveValues, bindEvent, isolate],
+        updateSelectizeInput, fluidPage, bindCache, reactive,
+        observe, reactiveValues, bindEvent, isolate],
   dplyr[filter, `%>%`, select, case_when, mutate, arrange, inner_join, rename],
-  DBI[dbGetQuery, dbSendQuery, dbReadTable],
+  DBI[dbGetQuery, dbReadTable],
   shinyWidgets[progressSweetAlert, closeSweetAlert],
   stringr[str_split, str_extract], 
   shinydashboardPlus[box],
@@ -14,7 +15,6 @@ box::use(
   GenomicRanges[findOverlaps, GRanges],
   IRanges[IRanges],
   S4Vectors[queryHits]
-  
 )
 
 #' @export
@@ -128,7 +128,6 @@ server <- function(id, con, appData, genomicData, main_session) {
       grA_overlaps <- grA[queryHits(overlaps)]
       dfA_overlaps <- as.data.frame(grA_overlaps) %>% rename(chr = seqnames)
       names(dfA_overlaps) <- gsub("^mcols\\.", "", names(dfA_overlaps))
-      print(nrow(dfA_overlaps))
       return(dfA_overlaps)
     }) %>% bindCache({list(appData$filters$manifest, current_sample_variants_infos_tmp(), appData$db_metadata$hash)})
 
@@ -152,17 +151,18 @@ server <- function(id, con, appData, genomicData, main_session) {
     current_sample_variants_impact <- reactive({
       
       req(current_sample_variants_impact_tmp())
-      
-      transcripts_list <- dbReadTable(appData$con, name = paste0(appData$filters$trlist, "_" , Sys.getenv("SHINYPROXY_USERNAME"), "_transcriptlist"))
-      
-      print(utils::head(transcripts_list))
+      if(appData$filters$trlist != "None"){
+        transcripts_list <- dbReadTable(appData$con, name = paste0(appData$filters$trlist, "_" , Sys.getenv("SHINYPROXY_USERNAME"), "_transcriptlist"))
+      } else {
+        req(appData$canonical_transcripts)
+        transcripts_list <- appData$canonical_transcripts
+      }
       
       current_sample_variants_impact <- current_sample_variants_impact_tmp() %>%
         filter(feature %in% transcripts_list$Transcripts)
       
       return(current_sample_variants_impact)
-    
-      
+   
     }) %>% bindCache({list(appData$filters$trlist, current_sample_variants_impact_tmp(), appData$db_metadata$hash)}) %>%
       bindEvent(c(appData$filters$trlist, current_sample_variants_impact_tmp()))
       
