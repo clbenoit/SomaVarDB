@@ -81,7 +81,7 @@ server <- function(id, con, appData, main_session) {
               selectInput(inputId = ns("impact"), width = '100%', label = "Impact",
                 choices  = c("Low","Moderate","High"), selected = "Low"),
               selectInput(inputId = ns("manifest"), width = '100%', label = "Manifest",
-                choices  = appData$user_parameters$manifests_list , selected = "None"),
+                choices  = c(appData$user_parameters$manifests_list, "None") , selected = "None"),
               selectInput(inputId = ns("trlist"), width = '100%', label = "Select a prefered transcripts list",
                 choices  = c(appData$user_parameters$transcript_lists, "None") , selected = "None")
               ),

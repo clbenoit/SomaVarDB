@@ -110,8 +110,8 @@ server <- function(id, con, appData, genomicData, main_session) {
     }) %>% bindCache({paste(current_sample_variants_ids())})
     
     current_sample_variants_infos <- reactive({
-      req(appData$filters$manifest)
-      req(current_sample_variants_infos_tmp)
+      req(current_sample_variants_infos_tmp())
+      if(appData$filters$manifest != "None"){
       print("filtering in silico panel")
       selected_bed <- dbReadTable(appData$con, name = paste0(appData$filters$manifest, "_", Sys.getenv("SHINYPROXY_USERNAME")))
 
@@ -129,6 +129,9 @@ server <- function(id, con, appData, genomicData, main_session) {
       dfA_overlaps <- as.data.frame(grA_overlaps) %>% rename(chr = seqnames)
       names(dfA_overlaps) <- gsub("^mcols\\.", "", names(dfA_overlaps))
       return(dfA_overlaps)
+      } else {
+        return(current_sample_variants_infos_tmp())
+      }
     }) %>% bindCache({list(appData$filters$manifest, current_sample_variants_infos_tmp(), appData$db_metadata$hash)})
 
     current_sample_variants_impact_tmp <- reactive({

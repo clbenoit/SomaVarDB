@@ -43,22 +43,12 @@ appDataManager <- R6::R6Class(
         }
 
         # Different sidebars according to selected tab
-        
-        if (!dbExistsTable(conn = con, "manifests_list")) {
-          manifests_list <- data.frame(user_id = "Me", 
-                                       manifests = "mymanifest_Me")
-          dbWriteTable(con, name = "manifests_list", value = manifests_list, overwrite = TRUE)
-        } else {
+        if (dbExistsTable(conn = con, "manifests_list")) {
           manifests_list <- DBI::dbReadTable(conn = con, name = "manifests_list") %>% filter(user_id == Sys.getenv("SHINYPROXY_USERNAME"))
           self$user_parameters$manifests_list <- gsub(paste0("_", Sys.getenv("SHINYPROXY_USERNAME")), "", manifests_list$manifests)
         }
         
-        if (!(dbExistsTable(con,"presets"))) {
-          presets <- data.frame(user = "mysetup", name = "mysetup", allelefrequencynum = "mysetup", coveragenum = "mysetup", 
-                                qualitynum = "mysetup", gnomadnum = "mysetup",
-                                impact = "mysetup", trlist = "mysetup", manifest = "mysetup")
-          dbWriteTable(con, name = "presets", value = presets, overwrite = TRUE)
-        } else {
+        if (dbExistsTable(con, "presets")) {
           self$user_parameters$presets <- DBI::dbReadTable(con, "presets") %>% filter(user == Sys.getenv("SHINYPROXY_USERNAME"))
         }
         
