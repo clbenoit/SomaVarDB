@@ -67,8 +67,8 @@ server <- function(id, con, appData, genomicData, main_session) {
     updateSelectizeInput(session = session, inputId = "selectedsample", choices = genomicData$samples_db$sample)
 
     current_sample_variants_genos <- reactive({
-      req(input$selectedsample) ; req(appData$filters$coverage_value); req(appData$filters$quality_value); req(appData$filters$allelefrequency_value)
-      print(input$selectedsample) ; print(appData$filters$coverage_value); print(appData$filters$quality_value); print(appData$filters$allelefrequency_value)
+      req(input$selectedsample) ; req(appData$filters$coverage_value); req(appData$filters$quality_value); req(appData$filters$allelefrequency_value_min);req(appData$filters$allelefrequency_value_max)
+      print(input$selectedsample) ; print(appData$filters$coverage_value); print(appData$filters$quality_value); print(appData$filters$allelefrequency_value_min); print(appData$filters$allelefrequency_value_max)
       print("getting current_sample_variants_genos")
       return(dbGetQuery(appData$con,
                         paste0("SELECT * from variant_geno WHERE sample = '", input$selectedsample, 
@@ -76,10 +76,12 @@ server <- function(id, con, appData, genomicData, main_session) {
       ) %>%
         filter((dp >= appData$filters$coverage_value) &
                 (qa >= appData$filters$quality_value) &
-                (af <= appData$filters$allelefrequency_value))
+                (af >= appData$filters$allelefrequency_value_min) & 
+                (af <= appData$filters$allelefrequency_value_max))
       )
     }) %>% bindCache({list(input$selectedsample,
-                           appData$filters$allelefrequency_value,
+                           appData$filters$allelefrequency_value_min,
+                           appData$filters$allelefrequency_value_max,
                            appData$filters$coverage_value,
                            appData$filters$quality_value,
                            appData$db_metadata$hash
@@ -91,7 +93,8 @@ server <- function(id, con, appData, genomicData, main_session) {
       req(current_sample_variants_genos())
       return(unique(current_sample_variants_genos()$variant_id))
     }) %>% bindCache({list(input$selectedsample,
-                           appData$filters$allelefrequency_value,
+                           appData$filters$allelefrequency_value_min,
+                           appData$filters$allelefrequency_value_max,
                            appData$filters$coverage_value,
                            appData$filters$quality_value,
                            appData$db_metadata$hash)
@@ -233,7 +236,7 @@ server <- function(id, con, appData, genomicData, main_session) {
                      "clinvarClinsig",
                      "clinvarClinsigConf",
                      "feature", "consequence", "impact", "biotype", "exon", "intron",
-                     #"cosmic",
+                     "cosmic",
                      "mdurl", "TumorSuppressor","Oncogene","gnomADv3",
                      "polyphen", "sift",
                      colnames(current_sample_variants_frequencies())))
@@ -259,13 +262,13 @@ server <- function(id, con, appData, genomicData, main_session) {
           }
           collapsed <- collapsed %>%
             mutate(`VKB2_freq(%)` =  signif(!!as.name(`VKB2_freq(%)`), digits = 2) * 100) %>%
-            arrange(`VKB2_freq(%)`, desc(hgvsp)) %>% ##### ARRANGE LIKE THIS IN GERMLINE DATA
-            #arrange(desc(af), desc(cosmic)) %>% ##### ARRANGE LIKE THIS IN SOMATIC DATA
+            #arrange(`VKB2_freq(%)`, desc(hgvsp)) %>% ##### ARRANGE LIKE THIS IN GERMLINE DATA
+            arrange(desc(af), desc(cosmic)) %>% ##### ARRANGE LIKE THIS IN SOMATIC DATA
             mutate(hgvsp = case_when(
               hgvsp != "" ~ paste0('<button id="variant_view_button_', variant_id, "_", symbol, '" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;', ns('goVariantView'), '&quot;,  this.id, {priority: &quot;event&quot;})">',hgvsp,'</button>'),
               TRUE ~ paste0('<button id="variant_view_button_', variant_id, "_", symbol, '" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;' , ns('goVariantView'),'&quot;,  this.id, {priority: &quot;event&quot;})"> GoToVariantView </button>'))) %>% 
             mutate(dbSNP = paste0(sprintf('<a href="https://www.ncbi.nlm.nih.gov/snp/?term=%s" target="_blank" class="btn btn-primary"', dbSNP),">", dbSNP, "</a>")) %>%
-            #mutate(cosmic = paste0(sprintf('<a href="https://cancer.sanger.ac.uk/cosmic/search?q=%s" target="_blank" class="btn btn-primary"',cosmic),">",cosmic,"</a>")) %>%
+            mutate(cosmic = paste0(sprintf('<a href="https://cancer.sanger.ac.uk/cosmic/search?q=%s" target="_blank" class="btn btn-primary"', cosmic),">", cosmic,"</a>")) %>%
             mutate(VKB2 =  paste0('<button id="button_', variant_id, "_", symbol, '" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;', ns("goannotateVKB"), '&quot;,  this.id, {priority: &quot;event&quot;})">',VKB,'</button>')) %>%
             mutate(symbol =  paste0('<a href="https://www.omim.org/search?index=entry&start=1&limit=10&sort=score+desc%2C+prefix_sort+desc&search=', symbol, '"', 'target="_blank"><b>', symbol, '</b></a>')) %>%
             select(c("VKB", "variant_id",# hidden
@@ -274,7 +277,7 @@ server <- function(id, con, appData, genomicData, main_session) {
                      "af",
                      "hgvsp","symbol",
                      "chr","gt_raw", 
-                     #"cosmic", 
+                     "cosmic", 
                      "dbSNP", "siftPred", "siftScore" , "polyphen2HdivPred",
                      "polyphen2HdivScore","polyphen2HvarPred",
                      "polyphen2HvarScore","clinvarClinsig","clinvarClinsigConf",
@@ -289,7 +292,8 @@ server <- function(id, con, appData, genomicData, main_session) {
     }) %>% bindCache({list(input$selectedsample,
                            appData$filters$gnomadfrequency_value,
                            appData$filters$impact, 
-                           appData$filters$allelefrequency_value,
+                           appData$filters$allelefrequency_value_min,
+                           appData$filters$allelefrequency_value_max,
                            appData$filters$coverage_value,
                            appData$filters$quality_value,
                            appData$db_metadata$hash,
@@ -300,9 +304,6 @@ server <- function(id, con, appData, genomicData, main_session) {
                   current_sample_variants_genos(), 
                   current_sample_variants_MD()))    
     
-    #observeEvent(c(current_sample_variants_table(), input$tabsBody),{
-    #observeEvent(current_sample_variants_table(), {
-        
       output$current_sample_variants_table <- renderDataTable({
         print("Rendering current sample variants table")
         req(current_sample_variants_table())

@@ -7,11 +7,12 @@ box::use(
         observeEvent, updateSliderInput, updateNumericInput, outputOptions, reactive, 
         renderText, textOutput, updateSelectInput],
   bsplus[bs_embed_tooltip, shiny_iconlink ],
-  dplyr[`%>%`, filter]
+  dplyr[`%>%`, filter],
 )
 
 box::use(
-  app/view/react[sliderNumeric],
+  app/view/react[sliderNumericInput],
+  app/view/react[sliderNumericRangeInput],
 )
 
 #' @export
@@ -43,7 +44,7 @@ server <- function(id, con, appData, main_session) {
               span(h4("Coverage",
                 shiny_iconlink(name = "info-circle") %>%
                   bs_embed_tooltip("Some information about this filter"), style = "text-align: center;")),br(),
-                sliderNumeric(inputId = ns("coverage"),
+                sliderNumericInput(inputId = ns("coverage"),
                   initialMin = appData$db_metadata$dp_min,
                   initialValue = appData$db_metadata$dp_min,
                   initialMax = appData$db_metadata$dp_max,
@@ -52,7 +53,7 @@ server <- function(id, con, appData, main_session) {
                 span(h4("Quality",
                   shiny_iconlink(name = "info-circle") %>%
                     bs_embed_tooltip("Some information about this filter"), style = "text-align: center;")),br(),
-                  sliderNumeric(inputId = ns("quality"),
+                  sliderNumericInput(inputId = ns("quality"),
                     initialMin = appData$db_metadata$qual_min,
                     initialMax = appData$db_metadata$qual_max,
                     initialValue = appData$db_metadata$qual_min,
@@ -60,19 +61,18 @@ server <- function(id, con, appData, main_session) {
                     fillDirection = 'right'),
                   span(h4("Allele Frequency",
                       shiny_iconlink(name = "info-circle") %>%
-                        bs_embed_tooltip("Some information about this filter"), style = "text-align: center;")),br(),
-                      sliderNumeric(inputId = ns("allelefrequency"),
-                        initialMin = appData$db_metadata$af_min,
-                        initialMax = appData$db_metadata$af_max,
-                        initialValue = appData$db_metadata$af_max,
-                        initialStep = 0.01,
-                        fillDirection = 'left'),
+                        bs_embed_tooltip("Some information about this filter"), style = "text-align: center;")), br(),
+                  sliderNumericRangeInput(inputId = ns("allelefrequency"),
+                                      initialMin = appData$db_metadata$af_min,
+                                      initialMax = appData$db_metadata$af_max,
+                                      initialValues = c(appData$db_metadata$af_min, appData$db_metadata$af_max),
+                                      initialStep = 0.01),
             ),
             tabPanel("Annotation", br(),
               span(h4("gnomAD Frequency",
                 shiny_iconlink(name = "info-circle") %>%
                   bs_embed_tooltip("Some information about this filter"), style = "text-align: center;")),br(),
-              sliderNumeric(inputId = ns("gnomadfrequency"),
+              sliderNumericInput(inputId = ns("gnomadfrequency"),
                             initialMin = 0,
                             initialMax = 1,
                             initialStep = 0.001,
@@ -117,7 +117,8 @@ server <- function(id, con, appData, main_session) {
     
     observeEvent(input$allelefrequency, {
       req(input$allelefrequency)
-      appData$filters$allelefrequency_value <- input$allelefrequency
+      appData$filters$allelefrequency_value_min <- input$allelefrequency[1]
+      appData$filters$allelefrequency_value_max <- input$allelefrequency[2]
     })
     
     observeEvent(input$impact, {
@@ -140,10 +141,31 @@ server <- function(id, con, appData, main_session) {
       if(input$selectedpreset != "None"){
         print("loading preset")
         loaded_preset <- appData$user_parameters$presets %>% filter(name == input$selectedpreset)
-        updateSelectInput(session = session, inputId = "coverage", selected = loaded_preset$coveragenum)
-        updateSelectInput(session = session, inputId = "quality", selected = loaded_preset$qualitynum)
-        updateSelectInput(session = session, inputId = "allelefrequency", selected = loaded_preset$allelefrequencynum)
-        updateSelectInput(session = session, inputId = "gnomadfrequency", selected = loaded_preset$gnomadfrequencynum)
+        #updateSelectInput(session = session, inputId = "coverage", selected = loaded_preset$coveragenum)
+        main_session$sendCustomMessage(
+          type = ns("coverage"),
+          message = list(
+            value = loaded_preset$coveragenum)
+        )
+        #updateSelectInput(session = session, inputId = "quality", selected = loaded_preset$qualitynum)
+        main_session$sendCustomMessage(
+          type = ns("quality"),
+          message = list(
+            value = loaded_preset$qualitynum)
+        )
+        #updateSelectInput(session = session, inputId = "allelefrequency", selected = loaded_preset$allelefrequencynum)
+        main_session$sendCustomMessage(
+          type = ns("allelefrequency"),
+          message = list(
+            values = c(loaded_preset$allelefrequencynummin, 
+                       loaded_preset$allelefrequencynummax))
+        )
+        #updateSelectInput(session = session, inputId = "gnomadfrequency", selected = c(loaded_preset$gnomadfrequencynummin, loaded_preset$gnomadfrequencynummax))
+        main_session$sendCustomMessage(
+          type = ns("gnomadfrequency"),
+          message = list(
+            value = loaded_preset$gnomadfrequencynum)
+        )
         updateSelectInput(session = session, inputId = "impact", selected = loaded_preset$impact)
         updateSelectInput(session = session, inputId = "manifest", selected = loaded_preset$manifest)
         updateSelectInput(session = session, inputId = "trlist", selected = loaded_preset$trlist)

@@ -93,7 +93,7 @@ server <- function(id, con, appData, genomicData, main_session) {
         }
       }
       collapsed <- row %>%
-        #mutate(cosmic = paste0(sprintf('<a href="https://cancer.sanger.ac.uk/cosmic/search?q=%s" target="_blank" class="btn btn-primary"',cosmic),">",cosmic,"</a>")) %>%
+        mutate(cosmic = paste0(sprintf('<a href="https://cancer.sanger.ac.uk/cosmic/search?q=%s" target="_blank" class="btn btn-primary"', cosmic),">", cosmic,"</a>")) %>%
         mutate(dbSNP =   paste0(sprintf('<a href="https://www.ncbi.nlm.nih.gov/snp/?term=%s" target="_blank" class="btn btn-primary"', dbSNP), ">", dbSNP,"</a>")) %>%
         mutate(hgvsp = paste0('<button id="variant_view_button_', variant_id, "_", symbol,'" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;goVariantView&quot;,  this.id, {priority: &quot;event&quot;})">',hgvsp,'</button>')) %>% 
         mutate(symbol =  paste0('<a href="https://www.omim.org/search?index=entry&start=1&limit=10&sort=score+desc%2C+prefix_sort+desc&search=', symbol, '"','target="_blank"><b>',symbol,'</b></a>')) %>%
@@ -102,7 +102,7 @@ server <- function(id, con, appData, genomicData, main_session) {
                  "symbol","hgvsp", "feature","consequence","impact",
                  "biotype","exon","intron", # normal
                  "dbSNP","clinvar_clnsig",
-                 #"cosmic",
+                 "cosmic",
                  "TumorSuppressor","Oncogene",
                  #"canonical",
                  "gnomADv3",

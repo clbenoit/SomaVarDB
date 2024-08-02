@@ -3,4 +3,7 @@ box::use(
 )
 
 #' @export
-sliderNumeric <- react_component("sliderNumeric")
+sliderNumericInput <- react_component("sliderNumericInput")
+
+#' @export
+sliderNumericRangeInput <- react_component("sliderNumericRangeInput")

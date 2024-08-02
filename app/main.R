@@ -10,7 +10,8 @@ box::use(
   DBI[dbConnect],
   RSQLite[SQLite],
   shinydashboard[dashboardPage, dashboardHeader, dashboardSidebar, dashboardBody, infoBox],
-  shinydashboardPlus[boxDropdown, boxDropdownItem]
+  shinydashboardPlus[boxDropdown, boxDropdownItem],
+  shinyvalidate[InputValidator]
 )
 
 box::use(
@@ -62,7 +63,7 @@ ui <- function(id) {
           )#,
           # footer = tags$footer(class = "main-footer",
           #   HTML("<div class=\"pull-right hidden-xs\">
-          #   <a href=\"https://clbenoit.github.io/portfolio/projects/germlinevardb\" target=\"_blank\"><b>About the app</b></a>
+          #   <a href=\"https://clbenoit.github.io/portfolio/projects/somavardb\" target=\"_blank\"><b>About the app</b></a>
           #   </div>
           #   Support: <b>benoitclement.data@gmail.com</b>"
           #   )
@@ -76,10 +77,6 @@ ui <- function(id) {
     )
   )
 }
-
-box::use(
-  app/view/react[sliderNumeric],
-)
 
 #' @export
 server <- function(id) {
@@ -138,21 +135,21 @@ server <- function(id) {
       change_page('presets_manager_page')
     })
     
+    iv <- InputValidator$new()
+    
     sidebar$server("sidebar", appData = appDataManager, main_session = session)
     patient_view$server("patient_view", appData = appDataManager, genomicData = genomicDataManager, main_session = session)
     variant_view$server("variant_view", appData = appDataManager, genomicData = genomicDataManager, main_session = session)
     variant_annoter$server("variant_annoter", appData = appDataManager, modal = TRUE)
     run_view$server("run_view", appData = appDataManager, genomicData = genomicDataManager, main_session = session)
     
-    
     observeEvent(input$tabsBody, {
       req(input$tabsBody)
       appDataManager$selectors$tab <- input$tabsBody
     })
     
-    presets_manager$server("presets_manager", appData = appDataManager)
+    presets_manager$server("presets_manager", appData = appDataManager, input_validator = iv)
 
-    
     observeEvent(input$godbinfo,{ 
       req(input$godbinfo)
       showModal(modalDialog(size = "l",

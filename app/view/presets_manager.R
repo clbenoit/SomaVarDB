@@ -12,7 +12,8 @@ box::use(
   shiny.router[change_page],
   shinyWidgets[sendSweetAlert],
   readr[read_delim, cols, col_character],
-  DBI[dbExecute]
+  DBI[dbExecute],
+  shinyvalidate[sv_between, sv_gt]
   
 )
 
@@ -50,8 +51,16 @@ ui <- function(id) {
                            column(width = 12, h1("Selected preset values : "))),br(),
                          fluidRow(
                            column(width = 4,
-                                  h2("Allele frequency :"),
-                                  numericInput(inputId = ns("allelefrequencynumsetup"), label = NULL ,width = '100%',step = 0.01,value = 0)),
+                                  h2("Allele frequency min :"),
+                                  numericInput(inputId = ns("allelefrequencynumsetupmin"),
+                                               label = NULL ,
+                                               width = '100%', step = 0.01, value = 0)),
+                           column(width = 4,
+                                  h2("Allele frequency max :"),                           
+                                  numericInput(inputId = ns("allelefrequencynumsetupmax"),
+                                               label = NULL ,
+                                               width = '100%', step = 0.01, 
+                                               value = 1)),
                            column(width = 4,
                                   h2("Coverage :"),
                                   numericInput(inputId = ns("coveragenumsetup"), label = NULL ,width = '100%',step = 0.01,value = 0)),
@@ -61,7 +70,8 @@ ui <- function(id) {
                          fluidRow(
                            column(width = 4,
                                   h2("gnomAd frequency :"),  
-                                  numericInput(inputId = ns("gnomadnumsetup"), label = NULL ,width = '100%',step = 0.01,value = 0, max = 1, min = 0)),
+                                  numericInput(inputId = ns("gnomadnumsetup"), label = NULL ,width = '100%',
+                                               step = 0.01, value = 0, max = 1, min = 0)),
                            column(width = 4,
                                   h2("Prefered transcripts list :"),  
                                   selectInput(inputId = ns("trlistsetup"), label = NULL ,width = '100%',
@@ -134,7 +144,7 @@ ui <- function(id) {
 }
 
 #' @export
-server <- function(id, appData, genomicData, main_session) {
+server <- function(id, appData, genomicData, main_session, input_validator) {
   moduleServer(id, function(input, output, session) {
     
     observeEvent(input$goroot,{
@@ -143,6 +153,13 @@ server <- function(id, appData, genomicData, main_session) {
     })
     ns <- session$ns
     print("entering mod_parameters_management_server")
+    
+    input_validator$add_rule("gnomadnumsetup", sv_between(0, 1))
+    input_validator$add_rule("allelefrequencynumsetupmax", sv_between(0, 1))
+    input_validator$add_rule("allelefrequencynumsetupmin", sv_between(0, 1))
+    input_validator$add_rule("covearagenum", sv_gt(0))
+    input_validator$add_rule("qualitynum", sv_gt(0))
+    input_validator$enable()
     
     observeEvent(appData$user_parameters$init_presets_manager, ignoreInit = FALSE, ignoreNULL = FALSE, {
       req(appData$user_parameters$init_presets_manager)
@@ -183,11 +200,12 @@ server <- function(id, appData, genomicData, main_session) {
       )
     })
     
-    observeEvent(input$confirmadd,priority = 100, {
+    observeEvent(input$confirmadd, priority = 100, {
       req(input$newpresetname)
       req(input$confirmadd)
       current_preset <- data.frame(user = Sys.getenv("SHINYPROXY_USERNAME"), name = input$newpresetname, 
-                                   allelefrequencynum = 'Emptypreset',
+                                   allelefrequencynummin = 'Emptypreset',
+                                   allelefrequencynummax = 'Emptypreset',
                                    coveragenum = 'Emptypreset', 
                                    qualitynum = 'Emptypreset',
                                    gnomadnum = 'Emptypreset',
@@ -218,13 +236,14 @@ server <- function(id, appData, genomicData, main_session) {
       removeModal()
     })
     
-    reactiveValuesInputsInside <- reactiveValues("allelefrequencynum" = 0, "coveragenum" = 0 ,
+    reactiveValuesInputsInside <- reactiveValues("allelefrequencynummin" = 0, "allelefrequencynummax" = 0,"coveragenum" = 0 ,
                                                  "qualitynum" = 0 , "gnomadnum" = 0,
                                                  "impact" = 0,  "trlist" = "None", 
                                                  "manifest" = "None")
     
     observeEvent(c(input$selectset,
-                   appData$filters$allelefrequency_value, 
+                   appData$filters$allelefrequency_value_min, 
+                   appData$filters$allelefrequency_value_max, 
                    appData$filters$coverage_value, 
                    appData$filters$quality_value, 
                    appData$filters$gnomadfrequency_value,
@@ -236,7 +255,8 @@ server <- function(id, appData, genomicData, main_session) {
                      req(appData$user_parameters$presets)
                      if(input$selectset == 'In use filter values'){
                        print('Load In use filter values')
-                       reactiveValuesInputsInside$allelefrequencynum <- appData$filters$allelefrequency_value
+                       reactiveValuesInputsInside$allelefrequencynummin <- appData$filters$allelefrequency_value_min
+                       reactiveValuesInputsInside$allelefrequencynummax <- appData$filters$allelefrequency_value_max
                        reactiveValuesInputsInside$coveragenum <- appData$filters$coverage_value
                        reactiveValuesInputsInside$qualitynum <- appData$filters$quality_value
                        reactiveValuesInputsInside$gnomadnum <- appData$filters$gnomadfrequency_value
@@ -247,13 +267,14 @@ server <- function(id, appData, genomicData, main_session) {
                        print(paste('Load ', input$selectset, ' preset filters values (inside module)'))
                        presets <- dbReadTable(appData$con, "presets")
                        current_preset <- appData$user_parameters$presets %>% filter(name  == input$selectset)
-                       if(current_preset$allelefrequencynum != "Emptypreset"){
+                       if(current_preset$allelefrequencynummin != "Emptypreset"){
                          values <- dbGetQuery(conn = appData$con,
-                                              paste0("SELECT  allelefrequencynum, coveragenum , qualitynum , gnomadnum , impact, trlist, manifest FROM presets ",
+                                              paste0("SELECT  allelefrequencynummin, allelefrequencynummax, coveragenum , qualitynum , gnomadnum , impact, trlist, manifest FROM presets ",
                                                      "WHERE user = '", 
                                                       Sys.getenv("SHINYPROXY_USERNAME"), "' AND name = '", 
                                                       input$selectset, "' ;"))
-                         reactiveValuesInputsInside$allelefrequencynum <- values$allelefrequencynum 
+                         reactiveValuesInputsInside$allelefrequencynummin <- values$allelefrequencynummin
+                         reactiveValuesInputsInside$allelefrequencynummax <- values$allelefrequencynummax
                          reactiveValuesInputsInside$coveragenum <- values$coveragenum
                          reactiveValuesInputsInside$qualitynum <- values$qualitynum
                          reactiveValuesInputsInside$gnomadnum <- values$gnomadnum
@@ -265,11 +286,17 @@ server <- function(id, appData, genomicData, main_session) {
                      }
    })
     
-    observeEvent(reactiveValuesInputsInside$allelefrequencynum, {
-        req(reactiveValuesInputsInside$allelefrequencynum)      
-        updateNumericInput(session = session, inputId = 'allelefrequencynumsetup',
-                           value = reactiveValuesInputsInside$allelefrequencynum)
+    observeEvent(reactiveValuesInputsInside$allelefrequencynummin, {
+        req(reactiveValuesInputsInside$allelefrequencynummin)      
+        updateNumericInput(session = session, inputId = 'allelefrequencynumsetupmin',
+                           value = reactiveValuesInputsInside$allelefrequencynummin)
     })
+    
+    observeEvent(reactiveValuesInputsInside$allelefrequencynummax, {
+      req(reactiveValuesInputsInside$allelefrequencynummax)      
+      updateNumericInput(session = session, inputId = 'allelefrequencynumsetupmax',
+                         value = reactiveValuesInputsInside$allelefrequencynummax)
+    })    
     
     observeEvent(reactiveValuesInputsInside$coveragenum, {
       req(reactiveValuesInputsInside$coveragenum)
@@ -286,7 +313,8 @@ server <- function(id, appData, genomicData, main_session) {
     observeEvent(reactiveValuesInputsInside$gnomadnum, {
       req(reactiveValuesInputsInside$gnomadnum)
       updateNumericInput(session = session, inputId = 'gnomadnumsetup',
-                         value = reactiveValuesInputsInside$gnomadnum)
+                         value = reactiveValuesInputsInside$gnomadnum,
+                         min = 0, max = 1)
     })
     
     observeEvent(reactiveValuesInputsInside$impact, {
@@ -307,10 +335,13 @@ server <- function(id, appData, genomicData, main_session) {
                         selected = reactiveValuesInputsInside$manifest)
     })      
     
-    reactiveValuesInputstoSave <-  reactiveValues("allelefrequencynum" = 0, "coveragenum" = 0 , "qualitynum" = 0, "gnomadnum" = 0,
+    reactiveValuesInputstoSave <-  reactiveValues("allelefrequencynummin" = 0,
+                                                  "allelefrequencynummax" = 0,
+                                                  "coveragenum" = 0 , "qualitynum" = 0, "gnomadnum" = 0,
                                                   "impact" = "Low","trlist" = "None", "manifest" = "None")
     
-    observeEvent(input$allelefrequencynumsetup, {reactiveValuesInputstoSave$allelefrequencynum <-  input$allelefrequencynumsetup})
+    observeEvent(input$allelefrequencynumsetupmin, {reactiveValuesInputstoSave$allelefrequencynummin <-  input$allelefrequencynumsetupmin})
+    observeEvent(input$allelefrequencynumsetupmax, {reactiveValuesInputstoSave$allelefrequencynummax <-  input$allelefrequencynumsetupmax})
     observeEvent(input$coveragenumsetup, {reactiveValuesInputstoSave$coveragenum <- input$coveragenumsetup})
     observeEvent( input$qualitynumsetup, {reactiveValuesInputstoSave$qualitynum <- input$qualitynumsetup })
     observeEvent( input$gnomadnumsetup, {reactiveValuesInputstoSave$gnomadnum <- input$gnomadnumsetup })
@@ -324,7 +355,8 @@ server <- function(id, appData, genomicData, main_session) {
       current_preset <- appData$user_parameters$presets %>% filter(name  == input$selectset)
       if(nrow(current_preset) >=1){
         dbSendQuery(conn = appData$con, paste0("UPDATE presets SET ",
-                                            "allelefrequencynum = '",reactiveValuesInputstoSave$allelefrequencynum , "', ",
+                                            "allelefrequencynummin = '",reactiveValuesInputstoSave$allelefrequencynummin , "', ",
+                                            "allelefrequencynummax = '",reactiveValuesInputstoSave$allelefrequencynummax , "', ",
                                             "coveragenum = '",reactiveValuesInputstoSave$coveragenum , "', ",
                                             "qualitynum = '", reactiveValuesInputstoSave$qualitynum , "', ",
                                             "gnomadnum = '", reactiveValuesInputstoSave$gnomadnum , "', ",
@@ -338,7 +370,8 @@ server <- function(id, appData, genomicData, main_session) {
                        text = HTML(paste("<p style='color:#086A87;'>", input$selectset, "</p>", "preset has been updated")),
                        html = TRUE,
                        type = "success")
-        reactiveValuesInputsInside$allelefrequencynum <- reactiveValuesInputstoSave$allelefrequencynum 
+        reactiveValuesInputsInside$allelefrequencynummin <- reactiveValuesInputstoSave$allelefrequencynummin
+        reactiveValuesInputsInside$allelefrequencynummax <- reactiveValuesInputstoSave$allelefrequencynummax
         reactiveValuesInputsInside$coveragenum <- reactiveValuesInputstoSave$coveragenum
         reactiveValuesInputsInside$qualitynum <- reactiveValuesInputstoSave$qualitynum
         reactiveValuesInputsInside$gnomadnum <- reactiveValuesInputstoSave$gnomadnum
@@ -359,7 +392,8 @@ server <- function(id, appData, genomicData, main_session) {
       req(input$confirmaddcurrent); req(input$newpresetnamecurrent); req(reactiveValuesInputstoSave);req(input$trlistsetup);req(input$manifestlistsetup)
       removeModal()
       current_preset <- data.frame(
-        "allelefrequencynum" = reactiveValuesInputstoSave$allelefrequencynum ,
+        "allelefrequencynummin" = reactiveValuesInputstoSave$allelefrequencynummin ,
+        "allelefrequencynummax" = reactiveValuesInputstoSave$allelefrequencynummax ,
         "coveragenum" = reactiveValuesInputstoSave$coveragenum,
         "qualitynum" = reactiveValuesInputstoSave$qualitynum, 
         "gnomadnum" = reactiveValuesInputstoSave$gnomadnum,        
@@ -375,7 +409,8 @@ server <- function(id, appData, genomicData, main_session) {
       sendSweetAlert(session = session,title = HTML(paste0("<p style='color:#086A87;'>", input$newpresetnamecurrent,"</p>", " Parameters preset added !")), 
                      text = "You might have to restart the app to see it available in data analysis window",
                      type = "success")
-      reactiveValuesInputsInside$allelefrequencynum <- reactiveValuesInputstoSave$allelefrequencynum 
+      reactiveValuesInputsInside$allelefrequencynummin <- reactiveValuesInputstoSave$allelefrequencynummin 
+      reactiveValuesInputsInside$allelefrequencynummax <- reactiveValuesInputstoSave$allelefrequencynummax
       reactiveValuesInputsInside$coveragenum <- reactiveValuesInputstoSave$coveragenum
       reactiveValuesInputsInside$qualitynum <- reactiveValuesInputstoSave$qualitynum
       reactiveValuesInputsInside$gnomadnum <- reactiveValuesInputstoSave$gnomadnum      
