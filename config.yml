@@ -1,5 +1,6 @@
 default:
-  genome_version: hg19
+  genome_version: "hg19"
+  transcripts:  "refseq"
   app_prod: no
   use_browser: FALSE
   browser_server_path: "localpath"
@@ -11,6 +12,7 @@ default:
 
 production:
   genome_version: "hg19"
+  transcripts:  "refseq"
   app_prod: yes
   use_browser: FALSE
   browser_server_path: remote # default, remote or path
@@ -22,6 +24,7 @@ production:
   
 demo:
   genome_version: "hg19"
+  transcripts:  "refseq"
   app_prod: no
   use_browser: FALSE
   cache_directory: "default"
@@ -29,6 +32,7 @@ demo:
   prefix: "test"
 
 demo_browser:
+  transcripts:  "refseq"
   genome_version: 'hg19'
   app_prod: no
   use_browser: TRUE
