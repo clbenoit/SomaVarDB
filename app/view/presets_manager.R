@@ -252,7 +252,7 @@ server <- function(id, appData, genomicData, main_session, input_validator) {
                    appData$filters$manifest#,
                    ), ignoreNULL = TRUE, {
                      req(input$selectset)
-                     req(appData$user_parameters$presets)
+                     #req(appData$user_parameters$presets)
                      if(input$selectset == 'In use filter values'){
                        print('Load In use filter values')
                        reactiveValuesInputsInside$allelefrequencynummin <- appData$filters$allelefrequency_value_min
@@ -265,7 +265,9 @@ server <- function(id, appData, genomicData, main_session, input_validator) {
                        reactiveValuesInputsInside$manifest <- appData$filters$manifest
                      } else {
                        print(paste('Load ', input$selectset, ' preset filters values (inside module)'))
-                       presets <- dbReadTable(appData$con, "presets")
+                       req(appData$user_parameters$presets)
+                       presets <- appData$user_parameters$presets
+                       #presets <- dbReadTable(appData$con, "presets")
                        current_preset <- appData$user_parameters$presets %>% filter(name  == input$selectset)
                        if(current_preset$allelefrequencynummin != "Emptypreset"){
                          values <- dbGetQuery(conn = appData$con,
