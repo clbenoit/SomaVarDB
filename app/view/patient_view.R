@@ -8,7 +8,7 @@ box::use(
         observe, reactiveValues, bindEvent, isolate],
   dplyr[filter, `%>%`, select, case_when, mutate, arrange, inner_join, rename],
   DBI[dbGetQuery, dbReadTable],
-  shinyWidgets[progressSweetAlert, closeSweetAlert],
+  shinyWidgets[progressSweetAlert, closeSweetAlert, sendSweetAlert],
   stringr[str_split, str_extract], 
   shinydashboardPlus[box],
   DT[dataTableOutput, datatable, renderDataTable, formatStyle, styleEqual],
@@ -115,23 +115,29 @@ server <- function(id, con, appData, genomicData, main_session) {
     current_sample_variants_infos <- reactive({
       req(current_sample_variants_infos_tmp())
       if(appData$filters$manifest != "None"){
-      print("filtering in silico panel")
-      selected_bed <- dbReadTable(appData$con, name = paste0(appData$filters$manifest, "_", Sys.getenv("SHINYPROXY_USERNAME")))
+        print("filtering in silico panel")
+        selected_bed <- dbReadTable(appData$con, name = paste0(appData$filters$manifest, "_", Sys.getenv("SHINYPROXY_USERNAME")))
 
-      metadata_columns <- setdiff(names(current_sample_variants_infos_tmp()), c("chr", "start", "end"))
+        metadata_columns <- setdiff(names(current_sample_variants_infos_tmp()), c("chr", "start", "end"))
       
-      grA <- GRanges(seqnames = current_sample_variants_infos_tmp()$chr,
-                     ranges = IRanges(start = as.numeric(current_sample_variants_infos_tmp()$start),
-                                      end = as.numeric(current_sample_variants_infos_tmp()$end)),
-                     mcols = current_sample_variants_infos_tmp()[, metadata_columns, drop = FALSE])   
-      grB <- GRanges(seqnames = selected_bed$chromosome,
+        grA <- GRanges(seqnames = current_sample_variants_infos_tmp()$chr,
+                       ranges = IRanges(start = as.numeric(current_sample_variants_infos_tmp()$start),
+                                        end = as.numeric(current_sample_variants_infos_tmp()$end)),
+                       mcols = current_sample_variants_infos_tmp()[, metadata_columns, drop = FALSE])   
+        grB <- GRanges(seqnames = selected_bed$chromosome,
                      ranges = IRanges(start = as.numeric(selected_bed$start), end = as.numeric(selected_bed$end)))
     
-      overlaps <- findOverlaps(grA, grB)
-      grA_overlaps <- grA[queryHits(overlaps)]
-      dfA_overlaps <- as.data.frame(grA_overlaps) %>% rename(chr = seqnames)
-      names(dfA_overlaps) <- gsub("^mcols\\.", "", names(dfA_overlaps))
-      return(dfA_overlaps)
+        overlaps <- findOverlaps(grA, grB)
+        grA_overlaps <- grA[queryHits(overlaps)]
+        dfA_overlaps <- as.data.frame(grA_overlaps) %>% rename(chr = seqnames)
+        names(dfA_overlaps) <- gsub("^mcols\\.", "", names(dfA_overlaps))
+        if(nrow(current_sample_variants_infos_tmp()) >=1 && nrow(dfA_overlaps) == 0) {
+          sendSweetAlert(session = session,
+                         title = "No variant matching selected manifest in the selected sample !", 
+                         html = TRUE, type = "error")
+        } else {
+          return(dfA_overlaps)
+        }
       } else {
         return(current_sample_variants_infos_tmp())
       }
@@ -209,7 +215,7 @@ server <- function(id, con, appData, genomicData, main_session) {
       req(current_sample_variants_MD())
       req(current_sample_variants_frequencies())
       
-      if(nrow(current_sample_variants_genos()) >=1 && nrow(current_sample_variants_impact()) >=1){
+      if(nrow(current_sample_variants_genos()) >=1 && nrow(current_sample_variants_impact()) >=1 && nrow(current_sample_variants_infos()) >=1){
         if(nrow(current_sample_variants_MD()) >=1){
           print("running current_sample_variants_table")
           progressSweetAlert(session = session, id = "renderingvarianttable",title = "Rendering variant table",display_pct = TRUE, value = 75)
@@ -217,11 +223,11 @@ server <- function(id, con, appData, genomicData, main_session) {
           
           current_sample_variants_table <- inner_join(current_sample_variants_impact(), isolate({current_sample_variants_infos()}),
                                                       by = "variant_id") %>%
-            inner_join(current_sample_variants_genos(),by = "variant_id") %>%
-            inner_join(current_sample_variants_MD(),by = "variant_id") %>%
-            inner_join(current_sample_variants_frequencies(),by = "variant_id") %>%
+            inner_join(current_sample_variants_genos(), by = "variant_id") %>%
+            inner_join(current_sample_variants_MD(), by = "variant_id") %>%
+            inner_join(current_sample_variants_frequencies(), by = "variant_id") %>%
             select(c("symbol","VKB",
-                     "variant_id","hgvsp",
+                     "variant_id", "hgvsp",
                      `VKB2_freq(%)`,
                      #"hgvsc", "canonical",
                      "af",
