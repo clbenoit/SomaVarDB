@@ -1,0 +1,90 @@
+.slider-container {
+  display: inline-block;
+  flex-direction: column;
+  align-items: center;
+  padding : 15px 25px 0px 13px;
+  width: 98%;
+  position: relative;
+}
+
+.slider-wrapperRange {
+  display: inline-block;
+  align-items: center;
+  width: 95%;
+  position: relative;
+}
+
+.slider-labelsRange {
+  width: 100%;
+  display: flex;
+  align-self: flex-start;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  margin-top: 2px;
+  padding-top: 20px;
+  padding-bottom: 15px;
+}
+
+.number-inputRange {
+  width : 45%;
+  padding : 5px;
+  margin-left: 12px;
+  background-color: white;
+  color : black;
+}
+
+.slider-value {
+  position: absolute;
+  top: -25px;
+  transform: translateX(-50%);
+  background-color: white;
+  color : black;
+  padding: 2px 5px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+$w: 20em;
+$h: 1em;
+
+@mixin track() {
+  background: none; /* get rid of Firefox track background */
+  height: 100%;
+  width: 100%;
+}
+
+@mixin thumb() {
+  background: currentcolor;
+  //border: none; /* get rid of Firefox thumb border */
+  //border-radius: 0; /* get rid of Firefox corner rounding */
+  pointer-events: auto; /* catch clicks */
+  width: $h; height: $h;
+  background-color: #676774; /* Set the background color of the thumb */
+  border-radius: 50%; /* Make it a circle */
+  border-color: #fff;
+  border-width: 2px;    
+}
+
+input[type='range'].sliderRange {
+  &::-webkit-slider-runnable-track, 
+  &::-webkit-slider-thumb, & { -webkit-appearance: none; }
+  
+  /* same as before */
+  position: absolute;
+  width: 100%;
+  height: 10px;
+  outline: none;
+  border-radius: 5px;
+  margin-top: 11px;
+  pointer-events: none; /* let clicks pass through */
+
+  &::-webkit-slider-runnable-track { @include track; }
+  &::-moz-range-track { @include track; }
+  
+  &::-webkit-slider-thumb { @include thumb; }
+  &::-moz-range-thumb { @include thumb; }
+}
+
+

@@ -58,4 +58,4 @@ app/data/testdata/test.db
 
 
 app/static/js/app.min.js*
-app/st*
+#app/st*
