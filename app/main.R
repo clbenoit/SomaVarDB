@@ -36,7 +36,7 @@ ui <- function(id) {
         #options = list(sidebarExpandOnHover = TRUE),
             dashboardHeader(
               titleWidth = '25%',
-              title = span(img(src = 'static/CHUlogo.png', width = 40, height = 39), "My app"),
+              title = span(img(src = 'static/CHUlogo.png', width = 40, height = 39), get("app_title")),
               tags$li(class = "dropdown", 
                   actionButton(label = NULL, inputId = ns("goparams"), icon = icon("gear"),
                     class = "actionButtonHeader"),

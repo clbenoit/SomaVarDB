@@ -9,6 +9,7 @@ default:
   multiqc: /home/ptngs/Git/multiqc
   db_path: "app/data/testdata"
   prefix: "test"
+  app_title: "akalaka"
 
 production:
   genome_version: "hg19"
