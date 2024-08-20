@@ -64,7 +64,7 @@ server <- function(id, con, appData, genomicData, main_session) {
                            choices = genomicData$samples_db$sample, server = TRUE)
     })
     
-    updateSelectizeInput(session = session, inputId = "selectedsample", choices = genomicData$samples_db$sample)
+    updateSelectizeInput(session = session, inputId = "selectedsample", choices = genomicData$samples_db$sample, server = TRUE)
 
     current_sample_variants_genos <- reactive({
       req(input$selectedsample) ; req(appData$filters$coverage_value); req(appData$filters$quality_value); req(appData$filters$allelefrequency_value_min);req(appData$filters$allelefrequency_value_max)
