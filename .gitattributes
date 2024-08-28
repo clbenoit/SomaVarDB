@@ -1,3 +1,5 @@
-app/data/annotations/hg38_canonical_transcripts_and_genes.txt filter=lfs diff=lfs merge=lfs -text
 app/data/annotations/gencode.v43lift37.annotation_canonical filter=lfs diff=lfs merge=lfs -text
-app/data/annotations/hg19_canonical_transcripts_and_genes.txt filter=lfs diff=lfs merge=lfs -text
+app/data/annotations/hg19_canonical_transcripts_refseq_and_genes.txt filter=lfs diff=lfs merge=lfs -text
+app/data/annotations/hg38_canonical_transcripts_refseq_and_genes.txt filter=lfs diff=lfs merge=lfs -text
+app/data/annotations/hg19_canonical_transcripts_ensembl_and_genes.txt filter=lfs diff=lfs merge=lfs -text
+app/data/annotations/hg19_canonical_transcripts_merged_and_genes.txt filter=lfs diff=lfs merge=lfs -text

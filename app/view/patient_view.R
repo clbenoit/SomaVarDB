@@ -108,7 +108,7 @@ server <- function(id, con, appData, genomicData, main_session) {
                                                   paste0("SELECT * from variant_info WHERE variant_id IN ('",
                                                          paste0(current_sample_variants_ids(),collapse="' , '"),
                                                          "');")
-      ) %>% select(-c("af"))
+      ) # %>% select(-c("af"))
       return(current_sample_variants_infos)
     }) %>% bindCache({paste(current_sample_variants_ids())})
     
@@ -153,7 +153,8 @@ server <- function(id, con, appData, genomicData, main_session) {
                                                    paste0("SELECT * from variant_impact WHERE variant_id IN ('",
                                                           paste0(current_sample_variants_ids(),collapse="' , '"),
                                                           "');")
-      ) %>% filter(case_when(appData$filters$impact  == "Low" ~ impact %in% c("LOW","MODERATE","HIGH","MODIFIER"),
+      ) %>% select(-c("af")) %>% 
+        filter(case_when(appData$filters$impact  == "Low" ~ impact %in% c("LOW","MODERATE","HIGH","MODIFIER"),
                              appData$filters$impact  == "Moderate" ~ impact %in% c("MODERATE","HIGH","MODIFIER"),
                              appData$filters$impact  == "High" ~ impact %in% c("HIGH","MODIFIER")))
       return(current_sample_variants_impact)
@@ -189,10 +190,10 @@ server <- function(id, con, appData, genomicData, main_session) {
                                                       "');"))
       
     current_sample_variants_MD_filtered <- current_sample_variants_MD %>% 
-        filter(!(gnomADv3 %in% c("No match in gnomADv3","Error on MobiDetails"))) %>%
+        filter(!(gnomADv3 %in% c("No match in gnomADv3","Error on MobiDetails","Absent on MobiDetails"))) %>%
         mutate(gnomADv3 = as.numeric(gnomADv3)) %>%
         filter(gnomADv3 <= appData$filters$gnomadfrequency_value)
-      current_sample_variants_MD_nomatch <- current_sample_variants_MD %>% filter(gnomADv3 %in% c("No match in gnomADv3","Error on MobiDetails"))
+      current_sample_variants_MD_nomatch <- current_sample_variants_MD %>% filter(gnomADv3 %in% c("No match in gnomADv3","Error on MobiDetails","Absent on MobiDetails"))
       current_sample_variants_MD <- rbind(current_sample_variants_MD_nomatch, current_sample_variants_MD_filtered)
       return(current_sample_variants_MD)
     }) %>% bindCache({paste(current_sample_variants_ids(), appData$filters$gnomadfrequency_value)}) %>% 

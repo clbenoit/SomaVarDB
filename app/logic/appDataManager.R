@@ -32,15 +32,22 @@ appDataManager <- R6::R6Class(
         text = "Loading database metadata")
   
         self$db_metadata <- dbReadTable(con, "db_metadata")
-        if(self$db_metadata$genome_version == "hg19"){
-          print(getwd())
-          self$canonical_transcripts <- read.table(file = "app/data/annotations/hg19_canonical_transcripts_and_genes.txt",
-                                                  header = TRUE, sep = "\t")
-          
-        } else if (self$db_metadata$genome_version == "hg38"){
-          self$canonical_transcripts <- read.table(file = "app/data/annotations/hg38_canonical_transcripts_and_genes.txt",
+        # if(self$db_metadata$genome_version == "hg19"){
+        #   print(getwd())
+        #   # self$canonical_transcripts <- read.table(file = paste0("app/data/annotations/hg19_canonical_transcripts_",
+        #   #                                                        get("transcripts"),
+        #   #                                                        "_and_genes.txt"),
+        #   #                                         header = TRUE, sep = "\t")
+        #   
+        # } else if (self$db_metadata$genome_version == "hg38"){
+          # example of annotation file name hg19_canonical_transcripts_refseq_and_genes.txt
+          self$canonical_transcripts <- read.table(file = paste0("app/data/annotations/",
+                                                                 self$db_metadata$genome_version,
+                                                                 "_canonical_transcripts_",
+                                                                 get("transcripts"),
+                                                                 "_and_genes.txt"),
                                                    header = TRUE, sep = "\t")
-        }
+        #}
 
         # Different sidebars according to selected tab
         if (dbExistsTable(conn = con, "manifests_list")) {

@@ -1,6 +1,8 @@
 default:
   genome_version: "hg19"
-  transcripts:  "refseq"
+#  transcripts:  "refseq"
+#  transcripts:  "ensembl"
+  transcripts:  "merged"
   app_prod: no
   use_browser: FALSE
   browser_server_path: "localpath"
@@ -13,7 +15,9 @@ default:
 
 production:
   genome_version: "hg19"
-  transcripts:  "refseq"
+#  transcripts:  "refseq"
+#  transcripts:  "ensembl"
+  transcripts:  "merged"
   app_prod: yes
   use_browser: FALSE
   browser_server_path: remote # default, remote or path
