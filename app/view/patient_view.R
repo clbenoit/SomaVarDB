@@ -1,15 +1,15 @@
 #app/view/patient_view.R
 
 box::use(
-  shiny[h3, moduleServer, tagList, conditionalPanel, tabsetPanel, tabPanel, 
-        span, br, column, fluidRow, h4, uiOutput, renderUI, NS, tags, updateTabsetPanel, 
-        sliderInput, req, numericInput, selectInput, selectizeInput, observeEvent, 
+  shiny[h3, moduleServer, tagList, conditionalPanel, tabsetPanel, tabPanel,
+        span, br, column, fluidRow, h4, uiOutput, renderUI, NS, tags, updateTabsetPanel,
+        sliderInput, req, numericInput, selectInput, selectizeInput, observeEvent,
         updateSelectizeInput, fluidPage, bindCache, reactive,
         observe, reactiveValues, bindEvent, isolate],
   dplyr[filter, `%>%`, select, case_when, mutate, arrange, inner_join, rename],
   DBI[dbGetQuery, dbReadTable],
   shinyWidgets[progressSweetAlert, closeSweetAlert, sendSweetAlert],
-  stringr[str_split, str_extract], 
+  stringr[str_split, str_extract],
   shinydashboardPlus[box],
   DT[dataTableOutput, datatable, renderDataTable, formatStyle, styleEqual],
   GenomicRanges[findOverlaps, GRanges],
@@ -54,16 +54,16 @@ ui <- function(id) {
 #' @export
 server <- function(id, con, appData, genomicData, main_session) {
   moduleServer(id, function(input, output, session) {
-    
+
     ns <- session$ns
     req(appData$db_metadata)
-    
+
     observeEvent(appData$selectors$sample, {
       req(appData$selectors$sample)
       updateSelectizeInput(session, inputId = "selectedsample", selected = appData$selectors$sample,
                            choices = genomicData$samples_db$sample, server = TRUE)
     })
-    
+
     updateSelectizeInput(session = session, inputId = "selectedsample", choices = genomicData$samples_db$sample, server = TRUE)
 
     current_sample_variants_genos <- reactive({
@@ -71,12 +71,12 @@ server <- function(id, con, appData, genomicData, main_session) {
       print(input$selectedsample) ; print(appData$filters$coverage_value); print(appData$filters$quality_value); print(appData$filters$allelefrequency_value_min); print(appData$filters$allelefrequency_value_max)
       print("getting current_sample_variants_genos")
       return(dbGetQuery(appData$con,
-                        paste0("SELECT * from variant_geno WHERE sample = '", input$selectedsample, 
+                        paste0("SELECT * from variant_geno WHERE sample = '", input$selectedsample,
                                "' AND  gt_raw NOT IN ('0/0','./0','0/.')")
       ) %>%
         filter((dp >= appData$filters$coverage_value) &
                 (qa >= appData$filters$quality_value) &
-                (af >= appData$filters$allelefrequency_value_min) & 
+                (af >= appData$filters$allelefrequency_value_min) &
                 (af <= appData$filters$allelefrequency_value_max))
       )
     }) %>% bindCache({list(input$selectedsample,
@@ -87,7 +87,7 @@ server <- function(id, con, appData, genomicData, main_session) {
                            appData$db_metadata$hash
                            )
       })
-    
+
     current_sample_variants_ids <- reactive({
       print("getting current_sample_variants_ids")
       req(current_sample_variants_genos())
@@ -98,7 +98,7 @@ server <- function(id, con, appData, genomicData, main_session) {
                            appData$filters$coverage_value,
                            appData$filters$quality_value,
                            appData$db_metadata$hash)
-                      }) %>% 
+                      }) %>%
                       bindEvent(current_sample_variants_genos())
 
     current_sample_variants_infos_tmp <- reactive({
@@ -111,7 +111,7 @@ server <- function(id, con, appData, genomicData, main_session) {
       ) # %>% select(-c("af"))
       return(current_sample_variants_infos)
     }) %>% bindCache({paste(current_sample_variants_ids())})
-    
+
     current_sample_variants_infos <- reactive({
       req(current_sample_variants_infos_tmp())
       if(appData$filters$manifest != "None"){
@@ -119,21 +119,21 @@ server <- function(id, con, appData, genomicData, main_session) {
         selected_bed <- dbReadTable(appData$con, name = paste0(appData$filters$manifest, "_", Sys.getenv("SHINYPROXY_USERNAME")))
 
         metadata_columns <- setdiff(names(current_sample_variants_infos_tmp()), c("chr", "start", "end"))
-      
+
         grA <- GRanges(seqnames = current_sample_variants_infos_tmp()$chr,
                        ranges = IRanges(start = as.numeric(current_sample_variants_infos_tmp()$start),
                                         end = as.numeric(current_sample_variants_infos_tmp()$end)),
-                       mcols = current_sample_variants_infos_tmp()[, metadata_columns, drop = FALSE])   
+                       mcols = current_sample_variants_infos_tmp()[, metadata_columns, drop = FALSE])
         grB <- GRanges(seqnames = selected_bed$chromosome,
                      ranges = IRanges(start = as.numeric(selected_bed$start), end = as.numeric(selected_bed$end)))
-    
+
         overlaps <- findOverlaps(grA, grB)
         grA_overlaps <- grA[queryHits(overlaps)]
         dfA_overlaps <- as.data.frame(grA_overlaps) %>% rename(chr = seqnames)
         names(dfA_overlaps) <- gsub("^mcols\\.", "", names(dfA_overlaps))
         if(nrow(current_sample_variants_infos_tmp()) >=1 && nrow(dfA_overlaps) == 0) {
           sendSweetAlert(session = session,
-                         title = "No variant matching selected manifest in the selected sample !", 
+                         title = "No variant matching selected manifest in the selected sample !",
                          html = TRUE, type = "error")
         } else {
           return(dfA_overlaps)
@@ -153,33 +153,41 @@ server <- function(id, con, appData, genomicData, main_session) {
                                                    paste0("SELECT * from variant_impact WHERE variant_id IN ('",
                                                           paste0(current_sample_variants_ids(),collapse="' , '"),
                                                           "');")
-      ) %>% select(-c("af")) %>% 
+      ) %>% # select(-c("af")) %>%
         filter(case_when(appData$filters$impact  == "Low" ~ impact %in% c("LOW","MODERATE","HIGH","MODIFIER"),
                              appData$filters$impact  == "Moderate" ~ impact %in% c("MODERATE","HIGH","MODIFIER"),
                              appData$filters$impact  == "High" ~ impact %in% c("HIGH","MODIFIER")))
       return(current_sample_variants_impact)
     }) %>% bindCache({list(input$selectedsample, appData$filters$impact, appData$db_metadata$hash)}) %>%
-      bindEvent(c(current_sample_variants_ids(), appData$filters$impact, appData$annoter_reactives$reload))    
+      bindEvent(c(current_sample_variants_ids(), appData$filters$impact, appData$annoter_reactives$reload))
 
     current_sample_variants_impact <- reactive({
-      
+
       req(current_sample_variants_impact_tmp())
       if(appData$filters$trlist != "None"){
         transcripts_list <- dbReadTable(appData$con, name = paste0(appData$filters$trlist, "_" , Sys.getenv("SHINYPROXY_USERNAME"), "_transcriptlist"))
       } else {
         req(appData$canonical_transcripts)
         transcripts_list <- appData$canonical_transcripts
+        print('utils::head(transcripts_list)')
+        print(utils::head(transcripts_list))
       }
-      
+
       current_sample_variants_impact <- current_sample_variants_impact_tmp() %>%
         filter(feature %in% transcripts_list$Transcripts)
-      
+
       return(current_sample_variants_impact)
-   
+
     }) %>% bindCache({list(appData$filters$trlist, current_sample_variants_impact_tmp(), appData$db_metadata$hash)}) %>%
       bindEvent(c(appData$filters$trlist, current_sample_variants_impact_tmp()))
-      
-        
+
+
+    observeEvent(current_sample_variants_impact(), {
+        req(current_sample_variants_impact())
+        print("current_sample_variants_impact")
+        print(utils::head(current_sample_variants_impact()))
+    })
+
     current_sample_variants_MD <- reactive({
       req(current_sample_variants_ids())
       req(appData$filters$gnomadfrequency_value)
@@ -188,15 +196,15 @@ server <- function(id, con, appData, genomicData, main_session) {
                                                paste0("SELECT * from variant_MD WHERE variant_id IN ('",
                                                       paste0(current_sample_variants_ids(),collapse="' , '"),
                                                       "');"))
-      
-    current_sample_variants_MD_filtered <- current_sample_variants_MD %>% 
+
+    current_sample_variants_MD_filtered <- current_sample_variants_MD %>%
         filter(!(gnomADv3 %in% c("No match in gnomADv3","Error on MobiDetails","Absent on MobiDetails"))) %>%
         mutate(gnomADv3 = as.numeric(gnomADv3)) %>%
         filter(gnomADv3 <= appData$filters$gnomadfrequency_value)
       current_sample_variants_MD_nomatch <- current_sample_variants_MD %>% filter(gnomADv3 %in% c("No match in gnomADv3","Error on MobiDetails","Absent on MobiDetails"))
       current_sample_variants_MD <- rbind(current_sample_variants_MD_nomatch, current_sample_variants_MD_filtered)
       return(current_sample_variants_MD)
-    }) %>% bindCache({paste(current_sample_variants_ids(), appData$filters$gnomadfrequency_value)}) %>% 
+    }) %>% bindCache({paste(current_sample_variants_ids(), appData$filters$gnomadfrequency_value)}) %>%
       bindEvent(c(current_sample_variants_ids(), appData$filters$gnomadfrequency_value))
 
     current_sample_variants_frequencies <- reactive({
@@ -207,7 +215,7 @@ server <- function(id, con, appData, genomicData, main_session) {
                                                                paste0(current_sample_variants_ids(),collapse="' , '"),
                                                                "');"))
       return(current_sample_variants_frequencies)
-    }) %>% bindCache({paste(current_sample_variants_ids())})    
+    }) %>% bindCache({paste(current_sample_variants_ids())})
 
     current_sample_variants_table <- reactive({
       req(current_sample_variants_impact())
@@ -215,13 +223,13 @@ server <- function(id, con, appData, genomicData, main_session) {
       req(current_sample_variants_genos())
       req(current_sample_variants_MD())
       req(current_sample_variants_frequencies())
-      
+
       if(nrow(current_sample_variants_genos()) >=1 && nrow(current_sample_variants_impact()) >=1 && nrow(current_sample_variants_infos()) >=1){
         if(nrow(current_sample_variants_MD()) >=1){
           print("running current_sample_variants_table")
           progressSweetAlert(session = session, id = "renderingvarianttable",title = "Rendering variant table",display_pct = TRUE, value = 75)
           `VKB2_freq(%)` <- colnames(current_sample_variants_frequencies())[grepl("ALL_DB", colnames(current_sample_variants_frequencies()))]
-          
+
           current_sample_variants_table <- inner_join(current_sample_variants_impact(), isolate({current_sample_variants_infos()}),
                                                       by = "variant_id") %>%
             inner_join(current_sample_variants_genos(), by = "variant_id") %>%
@@ -231,7 +239,7 @@ server <- function(id, con, appData, genomicData, main_session) {
                      "variant_id", "hgvsp",
                      `VKB2_freq(%)`,
                      #"hgvsc", "canonical",
-                     "af",
+                     #"af",
                      "gt_raw","chr",
                      "dbSNP",
                      "siftPred",
@@ -273,7 +281,7 @@ server <- function(id, con, appData, genomicData, main_session) {
             arrange(desc(af), desc(cosmic)) %>% ##### ARRANGE LIKE THIS IN SOMATIC DATA
             mutate(hgvsp = case_when(
               hgvsp != "" ~ paste0('<button id="variant_view_button_', variant_id, "_", symbol, '" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;', ns('goVariantView'), '&quot;,  this.id, {priority: &quot;event&quot;})">',hgvsp,'</button>'),
-              TRUE ~ paste0('<button id="variant_view_button_', variant_id, "_", symbol, '" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;' , ns('goVariantView'),'&quot;,  this.id, {priority: &quot;event&quot;})"> GoToVariantView </button>'))) %>% 
+              TRUE ~ paste0('<button id="variant_view_button_', variant_id, "_", symbol, '" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;' , ns('goVariantView'),'&quot;,  this.id, {priority: &quot;event&quot;})"> GoToVariantView </button>'))) %>%
             mutate(dbSNP = paste0(sprintf('<a href="https://www.ncbi.nlm.nih.gov/snp/?term=%s" target="_blank" class="btn btn-primary"', dbSNP),">", dbSNP, "</a>")) %>%
             mutate(cosmic = paste0(sprintf('<a href="https://cancer.sanger.ac.uk/cosmic/search?q=%s" target="_blank" class="btn btn-primary"', cosmic),">", cosmic,"</a>")) %>%
             mutate(VKB2 =  paste0('<button id="button_', variant_id, "_", symbol, '" type="button" class="btn btn-default action-button" onclick="Shiny.setInputValue(&quot;', ns("goannotateVKB"), '&quot;,  this.id, {priority: &quot;event&quot;})">',VKB,'</button>')) %>%
@@ -281,24 +289,24 @@ server <- function(id, con, appData, genomicData, main_session) {
             select(c("VKB", "variant_id",# hidden
                      "mdurl","VKB2", # fixed
                      `VKB2_freq(%)`,
-                     "af",
+                     #"af",
                      "hgvsp","symbol",
-                     "chr","gt_raw", 
-                     "cosmic", 
+                     "chr","gt_raw",
+                     "cosmic",
                      "dbSNP", "siftPred", "siftScore" , "polyphen2HdivPred",
                      "polyphen2HdivScore","polyphen2HvarPred",
                      "polyphen2HvarScore","clinvarClinsig","clinvarClinsigConf",
                      "feature","consequence","impact","biotype","exon","intron", # normal
                      "TumorSuppressor","Oncogene","gnomADv3"))# %>% #%>% arrange(desc(VKB2_freq(%))) #%>%
           #mutate(VKB2_freq = paste0(VKB2_freq, "%"))
-          
+
           closeSweetAlert(session = session)
           return(collapsed)
         }  else { print("no mobidetails information for variants contains in this sample. Have you run addMDtodb function after importing the vcf in base ?") }
       } else { print("novariantsmatching filtercriteria") }
     }) %>% bindCache({list(input$selectedsample,
                            appData$filters$gnomadfrequency_value,
-                           appData$filters$impact, 
+                           appData$filters$impact,
                            appData$filters$allelefrequency_value_min,
                            appData$filters$allelefrequency_value_max,
                            appData$filters$coverage_value,
@@ -306,11 +314,11 @@ server <- function(id, con, appData, genomicData, main_session) {
                            appData$db_metadata$hash,
                            appData$filters$manifest,
                            appData$filters$trlist)}) %>%
-      bindEvent(c(current_sample_variants_impact(), 
-                  current_sample_variants_infos(), 
-                  current_sample_variants_genos(), 
-                  current_sample_variants_MD()))    
-    
+      bindEvent(c(current_sample_variants_impact(),
+                  current_sample_variants_infos(),
+                  current_sample_variants_genos(),
+                  current_sample_variants_MD()))
+
       output$current_sample_variants_table <- renderDataTable({
         print("Rendering current sample variants table")
         req(current_sample_variants_table())
@@ -333,19 +341,19 @@ server <- function(id, con, appData, genomicData, main_session) {
         } else {datatable(data.frame("No results" = "0 variants passing the filters"), rownames = FALSE)}
       }) %>% bindEvent(current_sample_variants_table())
       #})
-    
+
     observeEvent(input$goannotateVKB, {
       print("goannotateVKB")
       appData$annoter_reactives$my_variant_id <- paste0(str_split(input$goannotateVKB, pattern = "_")[[1]][c(2,3)], collapse = "_")
       appData$annoter_reactives$launchmodal <- appData$annoter_reactives$launchmodal +  1
     })
-    
-    observeEvent(input$goVariantView, {      
+
+    observeEvent(input$goVariantView, {
       req(input$goVariantView)
       variant <- gsub("_$", "", str_extract(gsub("variant_view_button_", "", input$goVariantView), "^.*_"))
       updateTabsetPanel(session = main_session, inputId = "tabsBody",  selected = "VariantView")
       appData$selectors$variant <- variant
     })
- 
+
   })
 }

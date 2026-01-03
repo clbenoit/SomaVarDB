@@ -2,9 +2,9 @@
 
 box::use(
   reactable,
-  shiny[h3, moduleServer, tagList, conditionalPanel, tabsetPanel, tabPanel, 
+  shiny[h3, moduleServer, tagList, conditionalPanel, tabsetPanel, tabPanel,
         span, br, column, fluidRow, h4, uiOutput, renderUI, NS, tags, sliderInput, req, numericInput, selectInput, reactiveVal,
-        observeEvent, updateSliderInput, updateNumericInput, outputOptions, reactive, 
+        observeEvent, updateSliderInput, updateNumericInput, outputOptions, reactive,
         renderText, textOutput, updateSelectInput],
   bsplus[bs_embed_tooltip, shiny_iconlink ],
   dplyr[`%>%`, filter],
@@ -26,7 +26,7 @@ ui <- function(id) {
 #' @export
 server <- function(id, con, appData, main_session) {
   moduleServer(id, function(input, output, session) {
-    
+
     ns <- session$ns
 
     output$tabValue <- reactive({
@@ -34,8 +34,9 @@ server <- function(id, con, appData, main_session) {
        return(appData$selectors$tab)
     })
     outputOptions(output, "tabValue", suspendWhenHidden = FALSE)
-    
+
     output$sidebarUI <- renderUI({
+      column(12,
       tagList(
         conditionalPanel(condition = sprintf("output['%s'] == 'PatientView'", ns("tabValue")),
           tabsetPanel(id = ns("tabsPatient"),
@@ -96,46 +97,47 @@ server <- function(id, con, appData, main_session) {
           ),
           conditionalPanel(condition = sprintf("output['%s'] == 'RunView'", ns("tabValue")),
             selectInput(inputId = ns("runviewfilter"), width = '100%', label = "MyRunViewParameter",
-              choices  = c("Low","Moderate","High"),selected = "Low"))      
+              choices  = c("Low","Moderate","High"),selected = "Low"))
+      )
       )
     })
-    
+
     observeEvent(input$gnomadfrequency, {
       req(input$gnomadfrequency)
       appData$filters$gnomadfrequency_value <- input$gnomadfrequency
     })
-    
+
     observeEvent(input$quality, {
       req(input$quality)
       appData$filters$quality_value <- input$quality
     })
-    
+
     observeEvent(input$coverage, {
       req(input$coverage)
       appData$filters$coverage_value <- input$coverage
     })
-    
+
     observeEvent(input$allelefrequency, {
       req(input$allelefrequency)
       appData$filters$allelefrequency_value_min <- input$allelefrequency[1]
       appData$filters$allelefrequency_value_max <- input$allelefrequency[2]
     })
-    
+
     observeEvent(input$impact, {
       req(input$impact)
       appData$filters$impact <- input$impact
     })
-    
+
     observeEvent(input$manifest, {
       req(input$manifest)
       appData$filters$manifest <- input$manifest
     })
- 
+
     observeEvent(input$trlist, {
       req(input$trlist)
       appData$filters$trlist <- input$trlist
     })
-    
+
     observeEvent(input$selectedpreset ,{
       req(input$selectedpreset)
       if(input$selectedpreset != "None"){
@@ -157,7 +159,7 @@ server <- function(id, con, appData, main_session) {
         main_session$sendCustomMessage(
           type = ns("allelefrequency"),
           message = list(
-            values = c(loaded_preset$allelefrequencynummin, 
+            values = c(loaded_preset$allelefrequencynummin,
                        loaded_preset$allelefrequencynummax))
         )
         #updateSelectInput(session = session, inputId = "gnomadfrequency", selected = c(loaded_preset$gnomadfrequencynummin, loaded_preset$gnomadfrequencynummax))
@@ -171,6 +173,6 @@ server <- function(id, con, appData, main_session) {
         updateSelectInput(session = session, inputId = "trlist", selected = loaded_preset$trlist)
       }
     })
-    
+
   })
 }

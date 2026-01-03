@@ -11,7 +11,7 @@ default:
   multiqc: /home/ptngs/Git/multiqc
   db_path: "app/data/testdata"
   prefix: "test"
-  app_title: "akalaka"
+  app_title: "SomaVarDB Demo"
 
 production:
   genome_version: "hg19"
@@ -26,7 +26,7 @@ production:
   genome_ref: "genome reference file name"
   db_path: "edit_dp_path"
   prefix: "edit_db_prefix"
-  
+
 demo:
   genome_version: "hg19"
   transcripts:  "refseq"
